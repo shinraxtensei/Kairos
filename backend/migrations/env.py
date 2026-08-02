@@ -16,15 +16,15 @@ from sqlalchemy import engine_from_config, pool
 from kairos.config import get_settings
 from kairos.db import Base
 
+# Imported for the table-registration side effect — add every context's models
+# here as they are built, or autogenerate silently emits empty migrations.
+from kairos.trend_discovery.infrastructure import models  # noqa: F401
+
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Import each context's SQLAlchemy models here as they are built (M2 onward),
-# e.g. `from kairos.trend_discovery.infrastructure import models`. The import is
-# for its registration side effect, so it needs a noqa for F401.
 
 target_metadata = Base.metadata
 

@@ -232,27 +232,28 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
 
 ### Domain
 
-- [ ] **ENG-15** `trend_discovery` domain: `TrendSignal` aggregate, `SourcePlatform`, `Keyword`, `SearchVolume`, `CompetitionLevel`, `CollectedAt`. `TrendSource` port.
-      Note: use `domain-architect`.
+- [x] **ENG-15** `trend_discovery` domain: `TrendSignal` aggregate, `SourcePlatform`, `Keyword`, `SearchVolume`, `CompetitionLevel`, `CollectedAt`. `TrendSource` port.
+      Note: **`SearchVolume` carries a `VolumeScale`** (ABSOLUTE vs RELATIVE_INDEX). Google Trends returns a 0-100 index and Etsy returns absolute counts; a bare int would let ranking average 73 with 4,182 and produce confident noise. `CompetitionLevel.from_competing_listings` keeps the threshold ladder in the domain so every source maps through the same rule — **retune those bands once M7 shows which ones correlate with sales.**
 - [ ] **ENG-16** `niche_ranking` domain: `Niche`, `ProfitabilityScore`, `RankingCriteria`. Events: `NicheScored`, `NicheShortlisted`, `NicheRejected`.
-      Note: weighted formula, explainable. **Persist the score's inputs**, not just the output — you cannot tune a formula whose reasoning you didn't record.
+      Note: **not started.** Weighted formula, explainable. Persist the score's inputs, not just the output. It must normalise per `VolumeScale` before combining sources — Google momentum and Etsy demand are different quantities.
 
 ### Adapters
 
-- [ ] **ENG-17** Adapter resilience policy: a failing trend source degrades the pipeline, never halts it. `TrendSourceSyncFailed` + alert, pipeline continues on remaining sources.
-      Note: required by review R5 — TikTok CC and pytrends are both unofficial and *will* break.
-- [ ] **ENG-18** `EtsyTrendAdapter` (Open API v3 search/taxonomy).
-      Note:
-- [ ] **ENG-19** `GoogleTrendsAdapter` (`pytrends`).
-      Note: unofficial, breaks on Google endpoint changes. Pin the version; expect maintenance.
+- [x] **ENG-17** Adapter resilience policy: a failing trend source degrades the pipeline, never halts it. `TrendSourceSyncFailed` + alert, pipeline continues on remaining sources.
+      Note: two failure paths covered — a translated `TrendSourceError`, and an adapter that leaks a raw vendor exception (a bug in that adapter, but it must not take the run down). A dead *database* still raises, because that is not a degradation. **Validated for real:** a live run hit Google's 429 and degraded exactly as designed.
+- [!] **ENG-18** `EtsyTrendAdapter` (Open API v3 search/taxonomy).
+      Note: **blocked on ENG-01/02** (Etsy API credentials from M0). Port, contract suite and `SourcePlatform.ETSY` are all in place, so this is an adapter drop-in when the keys exist.
+- [x] **ENG-19** `GoogleTrendsAdapter` (`pytrends`).
+      Note: works against the live API. Three real behaviours handled: the final row is `isPartial` (an incomplete period that reads as a collapse and would drag momentum down on exactly the rising keywords we hunt); **one term per request** (see below); and a 2s inter-request delay because Google 429s readily. Signal ids are `uuid5(platform, keyword, observation-day)` so redelivery cannot duplicate a row.
+      **Bug found in a live run:** Google rescales its 0-100 index *within a batch*, so `moon phase print` scored **1** beside `cat sticker` — not low interest, just a shared request. Fetching one term per request makes the index relative to that keyword's own history (`8` for the same keyword — an 8× distortion). **Google Trends is the momentum source; Etsy supplies absolute demand.** Costs one request per seed; the delay default is a guess — tune it against real seed-list sizes.
 - [ ] **ENG-20** `TikTokCreativeCenterAdapter` — best-effort, explicitly non-critical.
-      Note: internal JSON endpoints, not a sanctioned API (R5). Isolate it; let it fail loudly and harmlessly.
-- [ ] **ENG-21** Persist raw payloads to JSONB alongside the parsed aggregate.
-      Note: cheap now, and the only way to re-score history after the formula changes.
-- [ ] **ENG-22** Celery beat schedule for periodic collection.
-      Note: start daily. Nothing here needs to be real-time.
-- [ ] **TST-02** `TrendSource` contract suite, run against all three adapters. Cassettes for each.
-      Note:
+      Note: **not started.** Internal JSON endpoints, not a sanctioned API (R5). Isolate it; let it fail loudly and harmlessly.
+- [x] **ENG-21** Persist raw payloads to JSONB alongside the parsed aggregate.
+      Note: full series stored per signal (92 points on a 3-month daily window). Repository upserts with `ON CONFLICT DO NOTHING`.
+- [x] **ENG-22** Celery beat schedule for periodic collection.
+      Note: daily at 06:00 UTC. Schedule and task registration live in `celery_app.py` as the composition root, not scattered per context. **Seeds are hardcoded** in `tasks.py` until Niche Ranking feeds them back (M7) — fine for one operator, revisit when the seed list stops being hand-picked.
+- [~] **TST-02** `TrendSource` contract suite, run against all three adapters. Cassettes for each.
+      Note: suite exists and runs against every registered adapter — adding one is a single entry in `ADAPTERS`. Currently covers Google Trends + a fake; Etsy joins with ENG-18, TikTok with ENG-20. **Uses hand-written stubs, not VCR cassettes** — a stub shaped like the real DataFrame was enough to pin the `isPartial` and batching behaviour. Revisit if adapter bugs start slipping through.
 
 ### Ops ritual
 
@@ -265,6 +266,7 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
       Note:
 
 **M2 exit:** leaderboard populated from ≥2 live sources on a schedule.
+**Progress:** collection half done and proven end to end against live Google Trends into real Postgres. Remaining: ENG-16 (ranking domain), ENG-23 (leaderboard), ENG-20 (TikTok). ENG-18 waits on M0 credentials — so **the ≥2-live-sources exit criterion cannot be met until then**; Google Trends alone is momentum with no demand or competition signal to rank against.
 
 ---
 
