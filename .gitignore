@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# claude — track agents/rules, ignore local machine state
+.claude/settings.local.json
