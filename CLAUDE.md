@@ -2,6 +2,8 @@
 
 Full domain model, data-source strategy, unit economics and build order live in [CONTEXT.md](CONTEXT.md). Read it before designing anything new. This file is the short enforceable version.
 
+**Current plan and status: [.claude/ROADMAP.md](.claude/ROADMAP.md)** — PRD, milestones, task checkboxes, decision register, risk register. Check it before starting work to see what milestone we're in, and update it in the same commit as the work it tracks. Where it corrects CONTEXT.md (Part II), the roadmap wins.
+
 ## Stack
 
 Python modular monolith. FastAPI + SQLAlchemy + PostgreSQL (JSONB for raw payloads) + Redis/Celery worker. One app process, one worker process.
