@@ -197,30 +197,32 @@ Each milestone has an exit criterion. Don't start the next one until it's met.
 
 **Exit criterion:** `pytest` runs green in CI, a Celery task executes end to end locally, and the app boots.
 
-- [ ] **ENG-05** `backend/` scaffold per CONTEXT.md §3.2. `pyproject.toml`, uv or Poetry, Python 3.12+.
-      Note:
-- [ ] **ENG-06** Ruff + mypy (strict on `domain/`), pre-commit hooks.
-      Note:
-- [ ] **ENG-07** **Import-linter contract enforcing the dependency rule** — `domain` may not import `infrastructure`; no cross-context domain imports.
-      Note: this is what makes CLAUDE.md's central rule real instead of aspirational. Do not skip it — the rule erodes silently otherwise.
-- [ ] **ENG-08** Postgres + Redis via docker-compose for local dev.
-      Note:
-- [ ] **ENG-09** Alembic wired up, first empty migration.
-      Note:
-- [ ] **ENG-10** Celery worker + beat, one hello-world periodic task proving the loop.
-      Note:
-- [ ] **ENG-11** Settings via pydantic-settings, `.env` for secrets, `.env.example` committed.
-      Note: never commit real keys. `.env` is already gitignored.
-- [ ] **ENG-12** FastAPI app skeleton + `/health`.
-      Note:
-- [ ] **ENG-13** GitHub Actions: ruff, mypy, pytest (excluding `live_integration`).
-      Note:
-- [ ] **ENG-14** `shared_kernel` with `Money` only. Resist adding to it.
-      Note:
-- [ ] **TST-01** pytest layout + markers (`live_integration`), fake-adapter conventions per CONTEXT.md §8.
-      Note:
+- [x] **ENG-05** `backend/` scaffold per CONTEXT.md §3.2. `pyproject.toml`, uv or Poetry, Python 3.12+.
+      Note: uv, pinned to 3.12 via `.python-version`. uv defaulted to 3.14, which disagreed with the mypy/ruff target — pinned so all three match. Only `trend_discovery` and `niche_ranking` packages exist; the other seven get created when built, so a missing package is a typo rather than an unenforced context.
+- [x] **ENG-06** Ruff + mypy (strict on `domain/`), pre-commit hooks.
+      Note: ruff + mypy done, enforced in CI. **Pre-commit hooks deliberately skipped** — CI is the gate and a second enforcement point is maintenance for no extra safety. Add locally if the feedback loop feels slow.
+- [x] **ENG-07** **Import-linter contract enforcing the dependency rule** — `domain` may not import `infrastructure`; no cross-context domain imports.
+      Note: 3 contracts (layers / domain-purity / context-independence). **Verified by deliberately breaking each one** — a green result on empty packages proves nothing, so both violations were introduced, caught, and reverted. `include_external_packages = true` is required for the domain-purity contract to name third-party packages.
+- [x] **ENG-08** Postgres + Redis via docker-compose for local dev.
+      Note: postgres:17-alpine, redis:7-alpine, both with healthchecks. Verified up and healthy.
+- [x] **ENG-09** Alembic wired up, first empty migration.
+      Note: sync template (the engine is sync — the async template was wrong and was redone). URL comes from `Settings`, not `alembic.ini`, so no credentials sit in a committed file. Baseline `117dac0d6a22` applied against real Postgres and confirmed in `alembic_version`. **`migrations/env.py` needs each context's models imported as they are built** or autogenerate silently emits empty migrations.
+- [x] **ENG-10** Celery worker + beat, one hello-world periodic task proving the loop.
+      Note: worker round-trip verified end to end (`ping` → `pong` over Redis). **No beat schedule yet** — there is no periodic task to schedule until ENG-22. `task_acks_late=True` is set, which means redelivery on worker loss is normal operation and makes ENG-34's publish idempotency load-bearing rather than theoretical.
+- [x] **ENG-11** Settings via pydantic-settings, `.env` for secrets, `.env.example` committed.
+      Note: `KAIROS_` env prefix. `.env.example` has the Etsy credential slots commented out ready for ENG-02.
+- [x] **ENG-12** FastAPI app skeleton + `/health`.
+      Note: plus `/health/deep`, which checks Postgres reachability and degrades rather than raising. A shallow health check that returns ok while the DB is down is how OPS-04 misses an outage.
+- [x] **ENG-13** GitHub Actions: ruff, mypy, pytest (excluding `live_integration`).
+      Note: five steps — lint, format, types, **architecture**, tests. `lint-imports` runs as its own step so a dependency-rule breach reads as an architecture failure, not a lint failure.
+- [x] **ENG-14** `shared_kernel` with `Money` only. Resist adding to it.
+      Note: Decimal-only, rejects float on both construction and multiplication, ROUND_HALF_UP, refuses cross-currency arithmetic. Etsy's ~6.5% fee on sub-cent amounts is exactly where float would quietly corrupt the `SpendLedger`.
+- [x] **TST-01** pytest layout + markers (`live_integration`), fake-adapter conventions per CONTEXT.md §8.
+      Note: marker registered and excluded from the default run via `addopts`; `--strict-markers` on. 14 tests, ~0.7s. **Fake-adapter conventions not written yet** — deferred to M2, where the first real port exists to write them against. Writing them now would be guessing.
 
-**M1 exit:** ENG-07 and ENG-13 green.
+**M1 exit:** ✅ ENG-07 and ENG-13 green. Full local run: ruff clean, mypy clean, 3/3 contracts kept, 14 tests pass, migrations apply.
+
+Known minor: `starlette.testclient` warns that httpx support is deprecated in favour of httpx2. Cosmetic; left alone rather than churning a working dev dependency.
 
 ---
 

@@ -11,4 +11,33 @@ Python modular monolith: FastAPI + PostgreSQL + Redis/Celery. One app process, o
 
 ## Status
 
-**M0 — Derisk & foundations.** No code yet, by design: open the shop, prove Etsy API access and payouts, build the unit-economics model. See the roadmap.
+**M0 — Derisk & foundations** (open the shop, prove Etsy API access and payouts, build the unit-economics model) — these are account/bank/ID tasks, not code.
+**M1 — Engineering skeleton** — done. See the roadmap.
+
+## Dev setup
+
+```bash
+cd backend
+uv sync --all-groups
+cp .env.example .env
+docker compose up -d
+uv run alembic upgrade head
+```
+
+Run it:
+
+```bash
+uv run uvicorn kairos.app:app --reload
+```
+
+```bash
+uv run celery -A kairos.celery_app worker --loglevel=info
+```
+
+Checks — all four are what CI runs:
+
+```bash
+uv run ruff check . && uv run mypy kairos && uv run lint-imports && uv run pytest
+```
+
+`lint-imports` enforces the hexagonal dependency rule from [CLAUDE.md](CLAUDE.md). If it fails, the architecture is broken — don't silence it.
