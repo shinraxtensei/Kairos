@@ -332,14 +332,17 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 
 ### Curation
 
-- [ ] **ENG-29** `curation` domain: `ReviewDecision`, `ApprovalDecision`. Events: `AssetApproved`, `AssetRejected`.
-      Note:
+- [x] **ENG-29** `curation` domain: `ReviewDecision`, `ApprovalDecision`. Events: `AssetApproved`, `AssetRejected`.
+      Note: `AssetApproved` can only be produced here, and only with a complete `IpScreening`. Decisions are final — re-approving or flipping a rejection raises, since that would strand events already emitted downstream. Rejection records a typed reason so Creative Direction can tell trademark risk from "off brief" and never re-roll an IP rejection into the same prompt set.
+      Still to do for this context: persistence, application service, and the review queue UI (ENG-30).
 - [ ] **ENG-30** Review Queue UI — **keyboard-first**, one asset per screen, J/K/A/R, no mouse required.
       Note: R6 — review speed is the throughput ceiling for the whole business. Treat this as the flagship surface.
-- [ ] **CMP-05** IP screening as a **blocking, explicit step** in the review flow — reviewer must actively confirm the CMP-04 checklist. No default-yes, no bulk-approve.
-      Note: R2. A checkbox pre-ticked is a checkbox not read.
+- [~] **CMP-05** IP screening as a **blocking, explicit step** in the review flow — reviewer must actively confirm the CMP-04 checklist. No default-yes, no bulk-approve.
+      Note: **enforced structurally in the domain.** The CMP-04 checklist is the `IpCheck` enum, and `IpScreening` refuses construction unless every member is cleared and a screener is named — so there is no representable state of "approved, screening partly done". `ReviewDecision.approve()` takes the screening as a **required positional argument**; an optional one with a permissive default is exactly how this check quietly stops happening the day someone adds a bulk-approve button.
+      Remaining: the UI must surface the checks individually rather than pre-ticking them, and persistence must store who screened. Domain half is done and cannot be bypassed.
 - [ ] **CMP-06** Enforce the approval gate at the **application-service** level: `DraftListing` requires a prior `AssetApproved` for that asset.
-      Note: CONTEXT.md §2. Not a UI convention.
+      Note: CONTEXT.md §2. Not a UI convention. **Lands with M5's `listing_authoring`.**
+      **Carry-over from the ENG-29 compliance review:** `AssetApproved` is a plain frozen dataclass and can be constructed by anyone, so it is not proof of anything on its own. `DraftListing` must verify against the **persisted `ReviewDecision`** for that asset — not against a passed-in event object. An in-memory event is a message, not a credential. Left as-is deliberately: guarding event construction would fight the DTO's purpose, and the persisted-check is the correct gate.
 - [ ] **TST-03** Test that no path reaches `DraftListing` without `AssetApproved` — including queue-triggered and admin paths.
       Note: the test that protects the business. Run `compliance-guardian` against this milestone before merge.
 - [ ] **TST-04** `ImageGenerator` contract suite.

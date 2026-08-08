@@ -112,6 +112,7 @@ layers = ["(infrastructure)", "(application)", "(domain)"]
 containers = [
     "kairos.trend_discovery",
     "kairos.niche_ranking",
+    "kairos.curation",
 ]
 
 [[tool.importlinter.contracts]]
@@ -120,6 +121,7 @@ type = "forbidden"
 source_modules = [
     "kairos.trend_discovery.domain",
     "kairos.niche_ranking.domain",
+    "kairos.curation.domain",
 ]
 forbidden_modules = [
     "sqlalchemy",
@@ -146,6 +148,7 @@ type = "independence"
 modules = [
     "kairos.trend_discovery",
     "kairos.niche_ranking",
+    "kairos.curation",
 ]
 # Every cross-context edge is listed here, one line each, rather than the
 # contract being weakened. Adding an edge is a review decision, and anything
