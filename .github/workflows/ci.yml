@@ -53,5 +53,12 @@ jobs:
       - name: Migrations apply cleanly
         run: uv run alembic upgrade head
 
+      # Same split as local: tests own a database, so nothing they truncate can
+      # ever be something someone cared about.
+      - name: Create test database
+        run: PGPASSWORD=kairos createdb -h localhost -U kairos kairos_test
+
       - name: Tests
+        env:
+          KAIROS_DATABASE_URL: postgresql+psycopg://kairos:kairos@localhost:5432/kairos_test
         run: uv run pytest

@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from kairos.config import get_settings
+from kairos.content_generation.domain.generated_asset import GeneratedAsset
 from kairos.content_generation.infrastructure.repository import (
     SqlAlchemyGeneratedAssetRepository,
 )
@@ -87,7 +88,7 @@ REJECTION_LABELS = {
 REVIEWER = "hamid"
 
 
-def _pending_assets(session: Session) -> list[object]:
+def _pending_assets(session: Session) -> list[GeneratedAsset]:
     """Packaged assets with no decision yet.
 
     Composed here rather than inside either context: Curation must not import
@@ -156,3 +157,79 @@ def reject(
         asset_id, reviewer=REVIEWER, reason=RejectionReason(reason), note=note
     )
     return RedirectResponse("/review", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# JSON read API.
+#
+# Added so the frontend decision stays open: a React/Next dashboard can be built
+# against these without touching the backend, and if it turns out not to earn
+# its second runtime, nothing was wasted. The HTML pages above stay the default
+# because the review queue is keyboard-driven list navigation, which a SPA does
+# not improve (DEC-01).
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/niches")
+def api_niches(
+    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
+) -> list[dict[str, object]]:
+    return [
+        {
+            "keyword": niche.keyword,
+            "score": niche.score.value if niche.score else None,
+            "confidence": niche.score.confidence.value if niche.score else None,
+            "status": niche.status.value,
+            "needs_corroboration": niche.needs_corroboration,
+            "breakdown": niche.breakdown.as_dict() if niche.breakdown else None,
+            "scored_at": niche.scored_at.isoformat() if niche.scored_at else None,
+        }
+        for niche in SqlAlchemyNicheRepository(session).leaderboard(limit=50)
+    ]
+
+
+@app.get("/api/review/queue")
+def api_review_queue(
+    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
+) -> dict[str, object]:
+    pending = _pending_assets(session)
+    return {
+        "total": len(pending),
+        # Sent so a client cannot invent its own list, drift from the server's,
+        # and quietly ship a shorter screening than the domain requires.
+        "ip_checks": [
+            {"value": check.value, "label": label} for check, label in IP_CHECK_LABELS.items()
+        ],
+        "rejection_reasons": [
+            {"value": reason.value, "label": label} for reason, label in REJECTION_LABELS.items()
+        ],
+        "assets": [
+            {
+                "asset_id": str(asset.asset_id),
+                "niche_keyword": asset.niche_keyword,
+                "variant_index": asset.variant.index,
+                "seed": asset.variant.seed,
+                "print_spec": (
+                    {
+                        "width_inches": asset.print_spec.width_inches,
+                        "height_inches": asset.print_spec.height_inches,
+                        "dpi": asset.print_spec.dpi,
+                        "pixel_width": asset.print_spec.pixel_width,
+                        "pixel_height": asset.print_spec.pixel_height,
+                    }
+                    if asset.print_spec
+                    else None
+                ),
+                "files": (
+                    [
+                        {"filename": f.filename, "size_bytes": f.size_bytes}
+                        for f in asset.delivery.files
+                    ]
+                    if asset.delivery
+                    else []
+                ),
+                "cost": str(asset.generation_cost) if asset.generation_cost else None,
+            }
+            for asset in pending
+        ],
+    }
