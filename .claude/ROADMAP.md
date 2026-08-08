@@ -234,8 +234,10 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
 
 - [x] **ENG-15** `trend_discovery` domain: `TrendSignal` aggregate, `SourcePlatform`, `Keyword`, `SearchVolume`, `CompetitionLevel`, `CollectedAt`. `TrendSource` port.
       Note: **`SearchVolume` carries a `VolumeScale`** (ABSOLUTE vs RELATIVE_INDEX). Google Trends returns a 0-100 index and Etsy returns absolute counts; a bare int would let ranking average 73 with 4,182 and produce confident noise. `CompetitionLevel.from_competing_listings` keeps the threshold ladder in the domain so every source maps through the same rule — **retune those bands once M7 shows which ones correlate with sales.**
-- [ ] **ENG-16** `niche_ranking` domain: `Niche`, `ProfitabilityScore`, `RankingCriteria`. Events: `NicheScored`, `NicheShortlisted`, `NicheRejected`.
-      Note: **not started.** Weighted formula, explainable. Persist the score's inputs, not just the output. It must normalise per `VolumeScale` before combining sources — Google momentum and Etsy demand are different quantities.
+- [x] **ENG-16** `niche_ranking` domain: `Niche`, `ProfitabilityScore`, `RankingCriteria`. Events: `NicheScored`, `NicheShortlisted`, `NicheRejected`.
+      Note: weighted formula, explainable, weights validated to sum to 1.0. `ScoreBreakdown` records every component and the applied weights so a score can be argued with later — a formula whose reasoning was not recorded cannot be tuned.
+      Two decisions worth revisiting: **missing signals renormalise the remaining weights** rather than counting as zero (momentum 80 alone scores 80, not 24 — otherwise every niche looks terrible whenever a source is down), and `ProfitabilityScore` carries a **`Confidence`** derived from how many signals were present. `Niche.needs_corroboration` flags a shortlist built on one source. **Until ENG-18 lands, every niche is in that state** — treat the leaderboard as momentum-only and do not commit design spend off it (RSK-04).
+      Not yet done for this context: persistence, application service, and the cross-context edge that turns `TrendSignal`s into `NicheSignals`. `demand_reference` (10,000) is a placeholder — set it from real Etsy result counts, and switch demand to a log scale if counts span orders of magnitude.
 
 ### Adapters
 
