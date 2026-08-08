@@ -50,3 +50,14 @@ class TrendSignalRepository(ABC):
     def recent(
         self, *, platform: SourcePlatform | None = None, limit: int = 100
     ) -> Sequence[TrendSignal]: ...
+
+    @abstractmethod
+    def latest_per_keyword_and_platform(self) -> Sequence[TrendSignal]:
+        """The newest signal for each (keyword, platform) pair.
+
+        Distinct from `recent`, which is a flat time-ordered window. Collapsing
+        `recent` in memory looks equivalent and is not: a keyword collected daily
+        for a month fills the window on its own and starves every other keyword
+        out of the results, so niches silently stop being ranked as history
+        grows. This has to be the database's job.
+        """

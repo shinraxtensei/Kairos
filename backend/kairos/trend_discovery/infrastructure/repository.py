@@ -75,3 +75,18 @@ class SqlAlchemyTrendSignalRepository(TrendSignalRepository):
         if platform is not None:
             query = query.where(TrendSignalRecord.platform == platform.value)
         return [_to_domain(row) for row in self._session.scalars(query.limit(limit))]
+
+    def latest_per_keyword_and_platform(self) -> Sequence[TrendSignal]:
+        # DISTINCT ON is Postgres-specific and exactly the right tool: one row
+        # per group, chosen by the ORDER BY, without a window function or a
+        # self-join. The leading ORDER BY columns must match the DISTINCT ON.
+        query = (
+            select(TrendSignalRecord)
+            .distinct(TrendSignalRecord.keyword, TrendSignalRecord.platform)
+            .order_by(
+                TrendSignalRecord.keyword,
+                TrendSignalRecord.platform,
+                TrendSignalRecord.collected_at.desc(),
+            )
+        )
+        return [_to_domain(row) for row in self._session.scalars(query)]

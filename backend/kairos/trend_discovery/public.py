@@ -20,6 +20,9 @@ from kairos.trend_discovery.infrastructure.repository import SqlAlchemyTrendSign
 __all__ = ["KeywordSignals", "latest_signals_per_keyword"]
 
 
-def latest_signals_per_keyword(session: Session, *, limit: int = 500) -> list[KeywordSignals]:
-    """Current picture per keyword, collapsed across sources."""
-    return LatestSignalsPerKeyword(SqlAlchemyTrendSignalRepository(session))(limit=limit)
+def latest_signals_per_keyword(session: Session) -> list[KeywordSignals]:
+    """Current picture per keyword, collapsed across sources.
+
+    Returns one entry per keyword regardless of how much history exists.
+    """
+    return LatestSignalsPerKeyword(SqlAlchemyTrendSignalRepository(session))()

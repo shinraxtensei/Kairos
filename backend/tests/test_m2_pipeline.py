@@ -184,3 +184,43 @@ def test_given_a_saved_niche_when_reloaded_then_the_breakdown_survives(
     assert niche.breakdown.demand_component == 50  # 5,000 of a 10,000 reference
     assert niche.breakdown.competition_penalty == 75
     assert pytest.approx(sum(niche.breakdown.applied_weights.values())) == 1.0
+
+
+def test_given_one_keyword_with_long_history_when_read_then_others_are_not_starved(
+    session: Session,
+) -> None:
+    """A busy keyword must not crowd others out of the ranking input.
+
+    The first implementation read a flat window of recent signals and collapsed
+    it in memory. At a daily cadence one keyword's history fills that window on
+    its own, and every other niche silently stops being ranked as history grows.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+    SqlAlchemyTrendSignalRepository(session).add_all(
+        [
+            TrendSignal.collect(
+                platform=SourcePlatform.GOOGLE_TRENDS,
+                keyword=Keyword("noisy"),
+                search_volume=SearchVolume.relative_index(50),
+                collected_at=now - timedelta(days=day),
+            )
+            for day in range(60)
+        ]
+        + [
+            TrendSignal.collect(
+                platform=SourcePlatform.GOOGLE_TRENDS,
+                keyword=Keyword("quiet"),
+                search_volume=SearchVolume.relative_index(99),
+                collected_at=now - timedelta(days=90),
+            )
+        ]
+    )
+
+    signals = TrendDiscoverySignalReader(session).signals_by_keyword()
+
+    assert set(signals) == {"noisy", "quiet"}
+    # And the newest value per keyword wins, not an arbitrary one.
+    assert signals["noisy"].momentum_index == 50
+    assert signals["quiet"].momentum_index == 99

@@ -65,6 +65,14 @@ class InMemoryTrendSignalRepository(TrendSignalRepository):
             rows = [row for row in rows if row.platform is platform]
         return rows[:limit]
 
+    def latest_per_keyword_and_platform(self) -> Sequence[TrendSignal]:
+        newest: dict[tuple[str, str], TrendSignal] = {}
+        for signal in self.signals.values():
+            key = (signal.keyword.text, signal.platform.value)
+            if key not in newest or signal.collected_at > newest[key].collected_at:
+                newest[key] = signal
+        return list(newest.values())
+
 
 class ExplodingRepository(TrendSignalRepository):
     """Proves persistence failures are not silently swallowed."""
@@ -75,6 +83,9 @@ class ExplodingRepository(TrendSignalRepository):
     def recent(
         self, *, platform: SourcePlatform | None = None, limit: int = 100
     ) -> Sequence[TrendSignal]:
+        raise RuntimeError("database is down")
+
+    def latest_per_keyword_and_platform(self) -> Sequence[TrendSignal]:
         raise RuntimeError("database is down")
 
 

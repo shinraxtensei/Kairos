@@ -23,13 +23,12 @@ from kairos.trend_discovery import public as trend_discovery
 
 
 class TrendDiscoverySignalReader(TrendSignalReader):
-    def __init__(self, session: Session, *, limit: int = 500) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._limit = limit
 
     def signals_by_keyword(self) -> dict[str, NicheSignals]:
         results: dict[str, NicheSignals] = {}
-        for summary in trend_discovery.latest_signals_per_keyword(self._session, limit=self._limit):
+        for summary in trend_discovery.latest_signals_per_keyword(self._session):
             if (
                 summary.momentum_index is None
                 and summary.demand_volume is None

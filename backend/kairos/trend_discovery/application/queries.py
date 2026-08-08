@@ -34,15 +34,15 @@ class LatestSignalsPerKeyword:
     def __init__(self, repository: TrendSignalRepository) -> None:
         self._repository = repository
 
-    def __call__(self, *, limit: int = 500) -> list[KeywordSignals]:
-        # `recent` returns newest first, so the first sighting of a keyword on a
-        # given platform is its latest.
+    def __call__(self) -> list[KeywordSignals]:
         momentum: dict[str, int] = {}
         demand: dict[str, int] = {}
         competition: dict[str, int] = {}
         platforms: dict[str, set[str]] = {}
 
-        for signal in self._repository.recent(limit=limit):
+        # One row per (keyword, platform) already — not a time window, so a
+        # keyword with months of history cannot crowd out the others.
+        for signal in self._repository.latest_per_keyword_and_platform():
             keyword = signal.keyword.text
             platforms.setdefault(keyword, set()).add(signal.platform.value)
 
