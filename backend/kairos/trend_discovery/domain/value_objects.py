@@ -46,7 +46,6 @@ class Keyword:
     """A search term. Normalised so the same term from two sources compares equal."""
 
     text: str
-
     def __post_init__(self) -> None:
         normalised = _WHITESPACE.sub(" ", self.text).strip().lower()
         if not normalised:

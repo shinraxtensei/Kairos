@@ -160,14 +160,14 @@ Each milestone has an exit criterion. Don't start the next one until it's met.
 
 ### API access
 
-- [ ] **ENG-01** Register the Etsy app, request **Seller App Access** (own shop only — not Personal, not Commercial).
-      Note: approves in minutes. If it doesn't, stop and reassess — everything downstream depends on this.
+- [x] **ENG-01** Register the Etsy app, request **Seller App Access** (own shop only — not Personal, not Commercial).
+      Note: app "kairos" registered, keystring issued. Approval was immediate, as expected — this was the project's most-feared external dependency and it turned out to be the cheapest.
 - [ ] **ENG-02** Complete Etsy OAuth 2.0 PKCE flow by hand once; store the refresh token. Confirm access-token refresh works.
-      Note: access tokens are short-lived; the refresh token is the thing to protect and rotate.
+      Note: **blocked on registering an HTTPS redirect URI** on the app; then run `uv run python scripts/etsy_oauth.py`. The script is written and its PKCE generation is verified against RFC 7636. The PKCE flow needs only the keystring — **the shared secret is not used by Kairos at all.** Refresh token lasts 90 days of disuse; it is the secret worth protecting.
 - [ ] **ENG-03** Call `getShop` and `createDraftListing` manually against the real shop. Delete the draft after.
       Note: proves credentials + scopes before any abstraction is written.
-- [ ] **ENG-04** Confirm rate limits on the account (expect 10 QPS / 10k per day).
-      Note:
+- [x] **ENG-04** Confirm rate limits on the account (expect 10 QPS / 10k per day).
+      Note: **actual is 5 QPS / 5,000 per day** — half the documented default, which is normal for a new app and raisable on request. Still ample: trend discovery (~100/day at 50 seeds) plus publishing (~120/day at 10 listings × ~10 calls) leaves ~4,700/day for Analytics polling, and `getShopListingsActive` pages 100 at a time. Thousands of listings before this binds. **Etsy's limits are not a throughput ceiling for this project** — curation review speed (RSK-07) and Google's 429s are.
 
 ### Economics
 
