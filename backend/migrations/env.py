@@ -14,10 +14,11 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from kairos.config import get_settings
-from kairos.db import Base
 
 # Imported for the table-registration side effect — add every context's models
 # here as they are built, or autogenerate silently emits empty migrations.
+from kairos.curation.infrastructure import models as curation_models  # noqa: F401
+from kairos.db import Base
 from kairos.niche_ranking.infrastructure import models as niche_models  # noqa: F401
 from kairos.trend_discovery.infrastructure import models  # noqa: F401
 

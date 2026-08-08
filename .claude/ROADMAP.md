@@ -334,7 +334,9 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 
 - [x] **ENG-29** `curation` domain: `ReviewDecision`, `ApprovalDecision`. Events: `AssetApproved`, `AssetRejected`.
       Note: `AssetApproved` can only be produced here, and only with a complete `IpScreening`. Decisions are final — re-approving or flipping a rejection raises, since that would strand events already emitted downstream. Rejection records a typed reason so Creative Direction can tell trademark risk from "off brief" and never re-roll an IP rejection into the same prompt set.
-      Still to do for this context: persistence, application service, and the review queue UI (ENG-30).
+      Persistence and the `ApproveAsset` / `RejectAsset` use cases are done. The repository exposes **`approval_exists_for(asset_id)`** — the persisted query CMP-06 must gate publication on, built now so M5 cannot skip it. Rehydration rebuilds through `IpScreening`'s own constructor, so a tampered or truncated row fails loudly instead of restoring an approval that was never fully screened.
+      `ip_checks_cleared` is stored rather than derived: a design approved under an older, shorter checklist stays visibly approved under *that* list, and adding a check later does not silently invalidate past approvals.
+      Still to do: the review queue UI (ENG-30) — **blocked on ENG-24**, since there are no assets to review until `content_generation` exists.
 - [ ] **ENG-30** Review Queue UI — **keyboard-first**, one asset per screen, J/K/A/R, no mouse required.
       Note: R6 — review speed is the throughput ceiling for the whole business. Treat this as the flagship surface.
 - [~] **CMP-05** IP screening as a **blocking, explicit step** in the review flow — reviewer must actively confirm the CMP-04 checklist. No default-yes, no bulk-approve.
