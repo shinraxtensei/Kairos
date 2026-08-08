@@ -319,8 +319,12 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 
 ### Domain & generation
 
-- [ ] **ENG-24** `content_generation` domain: `GeneratedAsset`, `AssetVariant`, `ProcessingJob`. Ports: `ImageGenerator`, `BackgroundRemover`, `Upscaler`. **Plus asset packaging to Etsy's file constraints** (R2 gap).
-      Note: JPEG over PNG at 300 DPI — PNG runs 3-5× larger and blows the 20MB cap.
+- [x] **ENG-24** `content_generation` domain: `GeneratedAsset`, `AssetVariant`, `ProcessingJob`. Ports: `ImageGenerator`, `BackgroundRemover`, `Upscaler`. **Plus asset packaging to Etsy's file constraints** (R2 gap).
+      Note: domain + ports done; **adapters wait on DEC-02**, which is the only thing the model choice touches.
+      The **R2 packaging gap is closed as domain rules**: `DeliveryFile` enforces ≤20MB and ≤70-char filenames, `DeliveryPackage` enforces ≤5 unique files, `PrintSpecification` enforces ≥300 DPI. The arithmetic is the point — an 18×24" poster at 300 DPI is ~39 megapixels, which as PNG clears Etsy's ceiling and as JPEG does not. Failing at packaging beats failing at upload, after generation has already been paid for.
+      `ProcessingStage` is a strict forward-only ladder. Upscaling before background removal bakes the background into the print at full resolution — expensive and unfixable — so skipping or repeating a stage raises. A failed asset can never be advanced or reviewed.
+      Generation cost rides on `AssetGenerated` as primitives, so Budgeting can record spend without the two contexts sharing a `Money` import through an event payload.
+      Still to do: persistence, application service, and adapters.
 - [ ] **ENG-25** `creative_direction` domain: `StyleGuide`, `PromptTemplate`, `VariationSet`.
       Note: keep prompt templates in the DB, not in code. You'll tune them constantly.
 - [ ] **ENG-26** Listing copy generation — title, 13 tags (≤20 chars each), description, via an LLM port. Eval against the BIZ-14 hand-written examples.
