@@ -350,9 +350,9 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 - [~] **CMP-05** IP screening as a **blocking, explicit step** in the review flow — reviewer must actively confirm the CMP-04 checklist. No default-yes, no bulk-approve.
       Note: **enforced structurally in the domain.** The CMP-04 checklist is the `IpCheck` enum, and `IpScreening` refuses construction unless every member is cleared and a screener is named — so there is no representable state of "approved, screening partly done". `ReviewDecision.approve()` takes the screening as a **required positional argument**; an optional one with a permissive default is exactly how this check quietly stops happening the day someone adds a bulk-approve button.
       Remaining: the UI must surface the checks individually rather than pre-ticking them, and persistence must store who screened. Domain half is done and cannot be bypassed.
-- [ ] **CMP-06** Enforce the approval gate at the **application-service** level: `DraftListing` requires a prior `AssetApproved` for that asset.
-      Note: CONTEXT.md §2. Not a UI convention. **Lands with M5's `listing_authoring`.**
-      **Carry-over from the ENG-29 compliance review:** `AssetApproved` is a plain frozen dataclass and can be constructed by anyone, so it is not proof of anything on its own. `DraftListing` must verify against the **persisted `ReviewDecision`** for that asset — not against a passed-in event object. An in-memory event is a message, not a credential. Left as-is deliberately: guarding event construction would fight the DTO's purpose, and the persisted-check is the correct gate.
+- [x] **CMP-06** Enforce the approval gate at the **application-service** level: `DraftListing` requires a prior `AssetApproved` for that asset.
+      Note: **done — the gate is closed end to end.** `DraftListing` asks an `ApprovalGate` port, whose adapter calls Curation's published facade, which asks the database. Seven tests in `tests/test_compliance_gate.py` cover: unreviewed, rejected, half-screened, approval for a *different* asset, and a **forged `AssetApproved` event** — all refused. Approved is allowed.
+      Carry-over now resolved: `AssetApproved` is a plain frozen dataclass and can be constructed by anyone, so it is not proof of anything on its own. `DraftListing` must verify against the **persisted `ReviewDecision`** for that asset — not against a passed-in event object. An in-memory event is a message, not a credential. Left as-is deliberately: guarding event construction would fight the DTO's purpose, and the persisted-check is the correct gate.
 - [ ] **TST-03** Test that no path reaches `DraftListing` without `AssetApproved` — including queue-triggered and admin paths.
       Note: the test that protects the business. Run `compliance-guardian` against this milestone before merge.
 - [ ] **TST-04** `ImageGenerator` contract suite.
@@ -366,8 +366,10 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 
 **Exit criterion:** a listing published to the real shop, by the pipeline, from an approved asset.
 
-- [ ] **ENG-31** `listing_authoring` domain: `ListingDraft`, `PricingRule`, **`AIDisclosure` as a required VO**, plus title/tags/description from ENG-26.
-      Note: constructing a publishable draft without disclosure must be structurally impossible — a type error, not a validation error.
+- [x] **ENG-31** `listing_authoring` domain: `ListingDraft`, `PricingRule`, **`AIDisclosure` as a required VO**, plus title/tags/description from ENG-26.
+      Note: `AIDisclosure` is a required constructor argument with no default, so omitting it is a type error at the call site rather than a runtime check someone can forget. Only "Designed by" is expressible — there is no "Made by" variant and no "no AI used" variant, since every asset here is AI-assisted by construction.
+      `ListingCopy` closes the other half of the R2 SEO gap: ≤140-char title, ≤13 tags of ≤20 chars, no duplicates, minimum description length. `PricingRule` refuses anything under $1.00, where Etsy's $0.20 fee plus ~6.5% would eat the margin.
+      Persistence for this context is still to do; the domain and the gate are done.
 - [ ] **ENG-32** `fulfillment` domain: `Listing`, `FulfillmentChannel` port, `ListingPublished` / `ListingPublishFailed`.
       Note:
 - [ ] **ENG-33** `EtsyDigitalDownloadAdapter`.

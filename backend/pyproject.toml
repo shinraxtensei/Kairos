@@ -115,6 +115,7 @@ containers = [
     "kairos.niche_ranking",
     "kairos.curation",
     "kairos.content_generation",
+    "kairos.listing_authoring",
 ]
 
 [[tool.importlinter.contracts]]
@@ -125,6 +126,7 @@ source_modules = [
     "kairos.niche_ranking.domain",
     "kairos.curation.domain",
     "kairos.content_generation.domain",
+    "kairos.listing_authoring.domain",
 ]
 forbidden_modules = [
     "sqlalchemy",
@@ -153,6 +155,7 @@ modules = [
     "kairos.niche_ranking",
     "kairos.curation",
     "kairos.content_generation",
+    "kairos.listing_authoring",
 ]
 # Every cross-context edge is listed here, one line each, rather than the
 # contract being weakened. Adding an edge is a review decision, and anything
@@ -160,6 +163,9 @@ modules = [
 #
 #   Niche Ranking reads trend signals through Trend Discovery's public facade,
 #   which returns plain DTOs. Permitted by CONTEXT.md §3.1.
+#   Listing Authoring asks Curation whether an asset has a persisted human
+#   approval. This is the CMP-06 compliance gate — see CONTEXT.md §2.
 ignore_imports = [
     "kairos.niche_ranking.infrastructure.trend_signal_reader -> kairos.trend_discovery.public",
+    "kairos.listing_authoring.infrastructure.approval_gate -> kairos.curation.public",
 ]

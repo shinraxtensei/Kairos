@@ -34,6 +34,20 @@ uv run uvicorn kairos.app:app --reload
 uv run celery -A kairos.celery_app worker --loglevel=info
 ```
 
+Seed demo data (local only — fabricates assets no image model produced):
+
+```bash
+cd backend && uv run python scripts/seed_demo.py
+```
+
+| URL | What |
+|---|---|
+| `/review` | Review queue — the daily surface. `1`-`6` toggle IP checks, `A` approve, `R` reject, `J`/`K` navigate |
+| `/niches` | Niche leaderboard |
+| `/health/deep` | App + Postgres reachability |
+| `/docs` | Auto-generated API reference |
+| `/api/niches`, `/api/review/queue` | JSON, for a future JS frontend |
+
 Checks — all four are what CI runs:
 
 ```bash
