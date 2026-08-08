@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kairos — Niche Leaderboard</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 15px/1.5 ui-sans-serif, system-ui, sans-serif; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; margin-bottom: .25rem; }
+    .sub { opacity: .7; margin-top: 0; }
+    .warn { border-left: 3px solid #d97706; background: color-mix(in srgb, #d97706 8%, transparent); padding: .75rem 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+    th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bar { display: inline-block; height: .5rem; border-radius: 2px; background: currentColor; opacity: .35; vertical-align: middle; margin-right: .4rem; }
+    .pill { font-size: .72rem; padding: .1rem .45rem; border-radius: 99px; border: 1px solid currentColor; opacity: .8; }
+    .shortlisted { color: #059669; }
+    .rejected { opacity: .45; }
+    .thin { color: #d97706; }
+    .empty { opacity: .6; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Niche Leaderboard</h1>
+  <p class="sub">{{ niches|length }} ranked · scored highest first</p>
+
+  {% if thin_count %}
+  <div class="warn">
+    <strong>{{ thin_count }} shortlisted niche{{ 's' if thin_count != 1 }} rest{{ '' if thin_count != 1 else 's' }} on a single source.</strong>
+    Google Trends gives momentum only — whether a keyword is rising, not whether
+    it is big or how crowded it is. Until the Etsy adapter lands (ENG-18), treat
+    these as leads to investigate by hand, not as a reason to spend on designs.
+  </div>
+  {% endif %}
+
+  {% if niches %}
+  <table>
+    <thead>
+      <tr>
+        <th>Keyword</th>
+        <th class="num">Score</th>
+        <th>Confidence</th>
+        <th>Status</th>
+        <th class="num">Momentum</th>
+        <th class="num">Demand</th>
+        <th class="num">Competition</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for niche in niches %}
+      <tr class="{{ niche.status.value }}">
+        <td>{{ niche.keyword }}</td>
+        <td class="num">
+          <span class="bar" style="width: {{ (niche.score.value * 0.4)|round|int }}px"></span>{{ niche.score.value }}
+        </td>
+        <td>
+          <span class="pill {{ 'thin' if niche.needs_corroboration }}">{{ niche.score.confidence.value }}</span>
+        </td>
+        <td>{{ niche.status.value }}</td>
+        <td class="num">{{ niche.breakdown.momentum_component|round|int if niche.breakdown and niche.breakdown.momentum_component is not none else '—' }}</td>
+        <td class="num">{{ niche.breakdown.demand_component|round|int if niche.breakdown and niche.breakdown.demand_component is not none else '—' }}</td>
+        <td class="num">{{ niche.breakdown.competition_penalty|round|int if niche.breakdown and niche.breakdown.competition_penalty is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">
+    Nothing ranked yet. Run collection, then ranking:<br>
+    <code>celery -A kairos.celery_app call kairos.trend_discovery.collect</code><br>
+    <code>celery -A kairos.celery_app call kairos.niche_ranking.rank</code>
+  </p>
+  {% endif %}
+</body>
+</html>

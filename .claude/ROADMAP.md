@@ -271,8 +271,12 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
 
 ### Read model
 
-- [ ] **ENG-23** Niche Leaderboard view (server-rendered).
-      Note:
+- [x] **ENG-23** Niche Leaderboard view (server-rendered).
+      Note: FastAPI + Jinja2 at `/niches` (settles **DEC-01** in practice — server-rendered, no build step, no second runtime). Shows score, confidence, status and the score's three components, with a banner counting single-source shortlists.
+      **Open issue it exposed:** the board sorts by score, so a Google-only niche scored 88 sits *above* a fully-corroborated one at 80 — the least-evidenced row is at the top. That follows from the deliberate choice that confidence marks a thinner claim rather than a lower score. It is mostly a transient artifact of running one source: once ENG-18 lands nearly everything is HIGH and the ordering stops lying. **Revisit after ENG-18** — if it still misleads, discount the score by confidence rather than re-sorting, since re-sorting would bury genuine momentum spikes.
+- [x] **ENG-23b** Cross-context bridge: `TrendSignal` → `NicheSignals`, plus niche persistence and the `RankNiches` use case.
+      Note: not in the original plan; needed to connect the two contexts. Trend Discovery now has a **published facade** (`trend_discovery/public.py`) — a sibling of the layers, acting as the context's composition root, returning plain DTOs only. That is the single permitted cross-context edge, listed by name in the import-linter `ignore_imports`, so a second edge fails the build.
+      **The contract earned its keep twice here.** The first draft reached into `trend_discovery.infrastructure.repository` — a genuine design flaw, caught by CI rather than review. The second was a cross-context test placed inside one context's `tests/`; it moved to the shared `tests/` root, where a test driving both contexts belongs.
 
 **M2 exit:** leaderboard populated from ≥2 live sources on a schedule.
 **Progress:** collection half done and proven end to end against live Google Trends into real Postgres. Remaining: ENG-16 (ranking domain), ENG-23 (leaderboard), ENG-20 (TikTok). ENG-18 waits on M0 credentials — so **the ≥2-live-sources exit criterion cannot be met until then**; Google Trends alone is momentum with no demand or competition signal to rank against.
@@ -451,7 +455,7 @@ Open questions from CONTEXT.md §10 plus ones surfaced in review. Each needs a d
 
 | ID | Decision | Needed by | Recommendation | Status |
 |---|---|---|---|---|
-| **DEC-01** | Frontend for `dashboard/` | M4 | **FastAPI + Jinja2 + HTMX.** The review queue is keyboard-driven list navigation — React buys nothing and costs a second runtime and a build step for a solo operator. Revisit only if drag-and-drop or live-updating budget bars become real needs. | `[ ]` |
+| **DEC-01** | Frontend for `dashboard/` | M4 | **FastAPI + Jinja2.** Settled in practice by ENG-23: the leaderboard is a server-rendered table with no build step and no second runtime. Add HTMX only when a page actually needs partial updates. Revisit only if the review queue needs drag-and-drop or live-updating budget bars. | `[x]` |
 | **DEC-02** | Image generation model | M4 | Commercial license is a **hard gate** — `FLUX.1 [dev]` is out (R3). Shortlist `FLUX.1 [pro]` (BFL API) and `[schnell]`; verify Midjourney/Gemini terms before comparing on cost or quality. | `[ ]` |
 | **DEC-03** | Budget cap numbers | M6 | Derive from BIZ-07. Do not pick a round number. | `[ ]` |
 | **DEC-04** | First niche | M3 | Pick by hand to *learn*; let the M2 pipeline pick the one you *commit* to. | `[ ]` |

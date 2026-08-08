@@ -18,6 +18,7 @@ from kairos.db import Base
 
 # Imported for the table-registration side effect — add every context's models
 # here as they are built, or autogenerate silently emits empty migrations.
+from kairos.niche_ranking.infrastructure import models as niche_models  # noqa: F401
 from kairos.trend_discovery.infrastructure import models  # noqa: F401
 
 config = context.config

@@ -13,6 +13,7 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "celery[redis]>=5.4",
     "pytrends>=4.9.2",
+    "jinja2>=3.1.6",
 ]
 
 [dependency-groups]
@@ -140,11 +141,18 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "Bounded contexts are independent"
 type = "independence"
-# Contexts integrate through application-service calls or the Celery queue —
-# never by importing each other. When a real cross-context call is added, allow
-# that single edge with ignore_imports rather than deleting this contract, so
-# every exception stays visible in review.
+# Contexts integrate through a published facade or the Celery queue — never by
+# importing each other's domain, repositories, or tables.
 modules = [
     "kairos.trend_discovery",
     "kairos.niche_ranking",
+]
+# Every cross-context edge is listed here, one line each, rather than the
+# contract being weakened. Adding an edge is a review decision, and anything
+# not listed fails the build.
+#
+#   Niche Ranking reads trend signals through Trend Discovery's public facade,
+#   which returns plain DTOs. Permitted by CONTEXT.md §3.1.
+ignore_imports = [
+    "kairos.niche_ranking.infrastructure.trend_signal_reader -> kairos.trend_discovery.public",
 ]

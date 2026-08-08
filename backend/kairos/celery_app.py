@@ -20,7 +20,10 @@ celery_app = Celery(
     backend=settings.redis_url,
     # The composition root: every context's task module is registered here.
     # Imported lazily at worker start, so contexts still import celery_app.
-    include=["kairos.trend_discovery.infrastructure.tasks"],
+    include=[
+        "kairos.trend_discovery.infrastructure.tasks",
+        "kairos.niche_ranking.infrastructure.tasks",
+    ],
 )
 celery_app.conf.update(
     task_acks_late=True,
