@@ -1,0 +1,158 @@
+[project]
+name = "kairos"
+version = "0.1.0"
+description = "Trend-discovery-to-Etsy-listing automation"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "celery[redis]>=5.4",
+    "pytrends>=4.9.2",
+    "jinja2>=3.1.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+    "httpx>=0.28",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kairos"]
+
+# ---------------------------------------------------------------------------
+# Tests — see CONTEXT.md §8. Default run excludes anything touching a live API.
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests", "kairos"]
+addopts = "-q --strict-markers -m 'not live_integration'"
+markers = [
+    "live_integration: hits a real third-party API. Excluded from the default run.",
+]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
+
+# ---------------------------------------------------------------------------
+# Lint
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ARG", "DTZ"]
+
+[tool.ruff.lint.per-file-ignores]
+# Both test roots: shared tests/ and each context's own tests/ (CONTEXT.md §3.2).
+# Fakes implement real ports, so they carry arguments they deliberately ignore.
+"tests/**" = ["ARG"]
+"kairos/*/tests/**" = ["ARG"]
+# Alembic generates these from its own template; `op` and `sa` are imported
+# whether or not a given revision uses them.
+"migrations/versions/**" = ["F401", "UP", "I001", "W291", "E501"]
+
+# ---------------------------------------------------------------------------
+# Types — strict in domain/, where the business rules live and there is no I/O
+# to make strictness painful.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "kairos.*.domain.*"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "pytrends.*", "pandas.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Celery's task decorator is untyped, which makes every task it wraps untyped.
+# Confined to the task modules so the rest of the codebase keeps the check.
+module = ["kairos.celery_app", "kairos.*.infrastructure.tasks"]
+disallow_untyped_decorators = false
+
+# ---------------------------------------------------------------------------
+# Architecture enforcement — CLAUDE.md's dependency rule, made executable.
+# Without this the rule erodes silently. Run via `lint-imports`.
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "kairos"
+# Required so the domain-purity contract below can name third-party packages.
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Hexagonal layers: infrastructure -> application -> domain, never reversed"
+type = "layers"
+# Parenthesised layers are optional, so a context that has not grown an
+# infrastructure/ or application/ package yet still passes.
+layers = ["(infrastructure)", "(application)", "(domain)"]
+# Add each new bounded context here as it is built. CONTEXT.md §3.2 lists all
+# nine; only the ones that exist are listed, so a missing package is a typo
+# rather than a silently unenforced context.
+containers = [
+    "kairos.trend_discovery",
+    "kairos.niche_ranking",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain layers are pure — no third-party SDKs, no I/O"
+type = "forbidden"
+source_modules = [
+    "kairos.trend_discovery.domain",
+    "kairos.niche_ranking.domain",
+]
+forbidden_modules = [
+    "sqlalchemy",
+    "alembic",
+    "fastapi",
+    "celery",
+    "httpx",
+    "requests",
+    "psycopg",
+    "pydantic_settings",
+    "pytrends",
+    "pandas",
+    "kairos.db",
+    "kairos.config",
+    "kairos.celery_app",
+    "kairos.app",
+]
+
+[[tool.importlinter.contracts]]
+name = "Bounded contexts are independent"
+type = "independence"
+# Contexts integrate through a published facade or the Celery queue — never by
+# importing each other's domain, repositories, or tables.
+modules = [
+    "kairos.trend_discovery",
+    "kairos.niche_ranking",
+]
+# Every cross-context edge is listed here, one line each, rather than the
+# contract being weakened. Adding an edge is a review decision, and anything
+# not listed fails the build.
+#
+#   Niche Ranking reads trend signals through Trend Discovery's public facade,
+#   which returns plain DTOs. Permitted by CONTEXT.md §3.1.
+ignore_imports = [
+    "kairos.niche_ranking.infrastructure.trend_signal_reader -> kairos.trend_discovery.public",
+]
