@@ -108,11 +108,18 @@ CONTEXT.md §4 covers nine contexts and misses four concerns. Two of them are sh
 
 `FLUX.1 [dev]` is under a **non-commercial license** — it's the variant everyone self-hosts, and selling its output violates the license. Only `FLUX.1 [schnell]` (Apache 2.0) or `FLUX.1 [pro]` (BFL API, commercial terms, usage reported through the API) are usable here. Whichever model wins the M4 bake-off, **the license is a selection criterion, not an afterthought** — check Midjourney's commercial terms and the Gemini/"Banana" terms the same way. See DEC-02.
 
-## R4 — Etsy API access is a smaller risk than it looks
+## R4 — Etsy API access ~~is a smaller risk than it looks~~ **CORRECTED 2026-08-08**
 
-**Seller App Access** — your own shop only — is approved in minutes with no manual review queue. That is exactly and only what Kairos needs. Commercial Access (for apps other sellers connect to) is a much deeper review, and is a **non-goal**. Default limits: **10 queries/sec, 10,000/day**, which is far beyond what this system will use.
+**The original claim here was wrong and is retracted.** It said access "is approved in minutes with no manual review queue." It is not.
 
-This removes what looked like the project's biggest external dependency. It also means M0 can be finished in days.
+**Personal Access is manually reviewed by Etsy.** The app sits at *Pending Personal Approval* and **the keystring does not work until approved** — Etsy's quickstart states approval is a prerequisite. Typical turnaround is 24-48h, but community reports run from several days to about three weeks, with no SLA and no progress visibility. Commercial Access (apps other sellers connect to) is a deeper review still, and remains a **non-goal**.
+
+Actual granted limits: **5 QPS / 5,000 per day** — half the documented default, normal for a new app, and still ample (see ENG-04).
+
+**Consequences:**
+- M0 cannot be "finished in days" on the API side. It is finished when Etsy says so.
+- ENG-02, ENG-03 and ENG-18 are blocked on a queue nobody controls — see RSK-12.
+- **This is the argument for M3.** Running the loop by hand needs no API at all, so the wait is not idle time. If the approval lands quickly, M3 was worth doing anyway; if it takes three weeks, M3 is the difference between three lost weeks and three useful ones.
 
 ## R5 — TikTok Creative Center is not as clean as claimed
 
@@ -160,12 +167,12 @@ Each milestone has an exit criterion. Don't start the next one until it's met.
 
 ### API access
 
-- [x] **ENG-01** Register the Etsy app, request **Seller App Access** (own shop only — not Personal, not Commercial).
-      Note: app "kairos" registered, keystring issued. Approval was immediate, as expected — this was the project's most-feared external dependency and it turned out to be the cheapest.
-- [ ] **ENG-02** Complete Etsy OAuth 2.0 PKCE flow by hand once; store the refresh token. Confirm access-token refresh works.
-      Note: **blocked on registering an HTTPS redirect URI** on the app; then run `uv run python scripts/etsy_oauth.py`. The script is written and its PKCE generation is verified against RFC 7636. The PKCE flow needs only the keystring — **the shared secret is not used by Kairos at all.** Refresh token lasts 90 days of disuse; it is the secret worth protecting.
-- [ ] **ENG-03** Call `getShop` and `createDraftListing` manually against the real shop. Delete the draft after.
-      Note: proves credentials + scopes before any abstraction is written.
+- [~] **ENG-01** Register the Etsy app, request Personal Access (own shop only — not Commercial).
+      Note: app "kairos" registered 2026-08-08, keystring issued, **status: Pending Personal Approval**. Contrary to what R4 originally claimed, this is a **manual review** and the keystring does not work until it clears — typically 24-48h, sometimes ~3 weeks. If it passes a week, nudge via Etsy's [API help form](https://developers.etsy.com/documentation/get-help/). Keys are in local `.env`.
+- [!] **ENG-02** Complete Etsy OAuth 2.0 PKCE flow by hand once; store the refresh token. Confirm access-token refresh works.
+      Note: **blocked on ENG-01 approval** — OAuth cannot succeed with an unapproved keystring. Everything on our side is ready: `scripts/etsy_oauth.py` is written and its PKCE generation verified against RFC 7636. Still to do when approval lands: register an HTTPS callback URL on the app, then run the script. The PKCE flow needs only the keystring — **the shared secret is unused by Kairos.** The refresh token expires after 90 days of disuse and is the secret worth protecting.
+- [!] **ENG-03** Call `getShop` and `createDraftListing` manually against the real shop. Delete the draft after.
+      Note: **blocked on ENG-02.** Proves credentials + scopes before any abstraction is written.
 - [x] **ENG-04** Confirm rate limits on the account (expect 10 QPS / 10k per day).
       Note: **actual is 5 QPS / 5,000 per day** — half the documented default, which is normal for a new app and raisable on request. Still ample: trend discovery (~100/day at 50 seeds) plus publishing (~120/day at 10 listings × ~10 calls) leaves ~4,700/day for Analytics polling, and `getShopListingsActive` pages 100 at a time. Thousands of listings before this binds. **Etsy's limits are not a throughput ceiling for this project** — curation review speed (RSK-07) and Google's 429s are.
 
@@ -468,6 +475,7 @@ Open questions from CONTEXT.md §10 plus ones surfaced in review. Each needs a d
 | **RSK-09** | Duplicate listings from retries | Low ($) | Medium | ENG-34 idempotency |
 | **RSK-10** | Solo-operator burnout / abandonment | **Fatal** | Medium | Ship the M3 manual loop early for a morale win. Boring tech. Small milestones. |
 | **RSK-11** | Etsy changes API or policy mid-build | Medium | Medium | Adapters isolate it. Re-read policy quarterly — put it in OPS-08. |
+| **RSK-12** | Etsy API approval stalls or is refused | High | **Medium** | Manual review, no SLA, reports up to ~3 weeks (R4). Mitigation is **M3**: the manual loop needs no API, so the wait produces listings and real cost data instead of idle time. Nudge the help form after a week. If refused, the shop still works by hand and only the automation is blocked. |
 
 ---
 
