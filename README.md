@@ -16,28 +16,18 @@ Python modular monolith: FastAPI + PostgreSQL + Redis/Celery. One app process, o
 
 ## Dev setup
 
-```bash
-cd backend
-uv sync --all-groups
-cp .env.example .env
-docker compose up -d
-uv run alembic upgrade head
-```
-
-Run it:
+Everything runs through `make` from the repo root — no `cd`, no remembering `uv run`:
 
 ```bash
-uv run uvicorn kairos.app:app --reload
+make setup
 ```
 
 ```bash
-uv run celery -A kairos.celery_app worker --loglevel=info
+make seed
 ```
 
-Seed demo data (local only — fabricates assets no image model produced):
-
 ```bash
-cd backend && uv run python scripts/seed_demo.py
+make dev
 ```
 
 | URL | What |
@@ -48,10 +38,6 @@ cd backend && uv run python scripts/seed_demo.py
 | `/docs` | Auto-generated API reference |
 | `/api/niches`, `/api/review/queue` | JSON, for a future JS frontend |
 
-Checks — all four are what CI runs:
-
-```bash
-uv run ruff check . && uv run mypy kairos && uv run lint-imports && uv run pytest
-```
+`make help` lists everything. The ones you'll want: `check` (everything CI runs), `test`, `fmt`, `worker`, `collect`, `rank`, `down`.
 
 `lint-imports` enforces the hexagonal dependency rule from [CLAUDE.md](CLAUDE.md). If it fails, the architecture is broken — don't silence it.
