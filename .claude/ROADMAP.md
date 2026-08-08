@@ -341,8 +341,12 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       Persistence and the `ApproveAsset` / `RejectAsset` use cases are done. The repository exposes **`approval_exists_for(asset_id)`** — the persisted query CMP-06 must gate publication on, built now so M5 cannot skip it. Rehydration rebuilds through `IpScreening`'s own constructor, so a tampered or truncated row fails loudly instead of restoring an approval that was never fully screened.
       `ip_checks_cleared` is stored rather than derived: a design approved under an older, shorter checklist stays visibly approved under *that* list, and adding a check later does not silently invalidate past approvals.
       Still to do: the review queue UI (ENG-30) — **blocked on ENG-24**, since there are no assets to review until `content_generation` exists.
-- [ ] **ENG-30** Review Queue UI — **keyboard-first**, one asset per screen, J/K/A/R, no mouse required.
-      Note: R6 — review speed is the throughput ceiling for the whole business. Treat this as the flagship surface.
+- [x] **ENG-30** Review Queue UI — **keyboard-first**, one asset per screen, J/K/A/R, no mouse required.
+      Note: at `/review`. `1`-`6` toggle the IP checks, `A` approves, `R` rejects, `J`/`K` navigate. Verified in a browser end to end: six keypresses then `A` persisted an approval with all six checks and the screener recorded, and the queue advanced.
+      **Nothing is pre-ticked and Approve stays disabled until all six are confirmed** (CMP-05), asserted against the rendered HTML rather than the template. The client-side gate is convenience only — a hand-crafted POST with one box ticked is refused by the domain, which has its own test.
+      Only packaged, unfailed, undecided assets appear. Queue drains **oldest first**, since niche momentum decays.
+      Fixed during review: the preview box pushed the niche and print spec below the fold. A reviewer who scrolls to see what they are judging loses seconds per asset, and that is the throughput ceiling.
+      **Image preview lands with the generator adapter (DEC-02)** — everything else is real.
 - [~] **CMP-05** IP screening as a **blocking, explicit step** in the review flow — reviewer must actively confirm the CMP-04 checklist. No default-yes, no bulk-approve.
       Note: **enforced structurally in the domain.** The CMP-04 checklist is the `IpCheck` enum, and `IpScreening` refuses construction unless every member is cleared and a screener is named — so there is no representable state of "approved, screening partly done". `ReviewDecision.approve()` takes the screening as a **required positional argument**; an optional one with a permissive default is exactly how this check quietly stops happening the day someone adds a bulk-approve button.
       Remaining: the UI must surface the checks individually rather than pre-ticking them, and persistence must store who screened. Domain half is done and cannot be bypassed.

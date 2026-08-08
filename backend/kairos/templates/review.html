@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kairos — Review Queue</title>
+  <style>
+    :root { color-scheme: light dark; --edge: color-mix(in srgb, currentColor 18%, transparent); }
+    body { font: 15px/1.5 ui-sans-serif, system-ui, sans-serif; margin: 0; padding: 1.5rem; max-width: 68rem; margin-inline: auto; }
+    header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    h1 { font-size: 1.2rem; margin: 0; }
+    .count { opacity: .65; font-variant-numeric: tabular-nums; }
+    .rate { margin-left: auto; opacity: .65; font-size: .85rem; font-variant-numeric: tabular-nums; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+    @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+    /* Capped so the niche and print spec stay above the fold. A reviewer who
+       has to scroll to see what they are judging loses seconds on every asset,
+       and seconds per asset is the throughput ceiling. */
+    .preview { border: 1px solid var(--edge); border-radius: 6px; aspect-ratio: 3 / 4; max-height: 52vh; display: grid; place-items: center; text-align: center; padding: 1rem; opacity: .75; }
+    .meta { font-size: .85rem; opacity: .7; margin-top: .6rem; display: grid; grid-template-columns: auto 1fr; gap: .15rem .8rem; }
+    .meta dt { opacity: .7; }
+    .meta dd { margin: 0; font-variant-numeric: tabular-nums; }
+    fieldset { border: 1px solid var(--edge); border-radius: 6px; padding: .9rem 1rem; margin: 0 0 1rem; }
+    legend { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; opacity: .7; padding: 0 .35rem; }
+    .check { display: flex; align-items: center; gap: .6rem; padding: .3rem 0; }
+    .check kbd { font: inherit; font-size: .72rem; border: 1px solid var(--edge); border-radius: 3px; padding: 0 .3rem; opacity: .6; min-width: 1.1rem; text-align: center; }
+    .check label { flex: 1; cursor: pointer; }
+    .actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    button { font: inherit; padding: .45rem .9rem; border-radius: 5px; border: 1px solid var(--edge); background: transparent; color: inherit; cursor: pointer; }
+    button[disabled] { opacity: .35; cursor: not-allowed; }
+    .approve { border-color: #059669; color: #059669; font-weight: 600; }
+    .reject { border-color: #dc2626; color: #dc2626; }
+    select, input[type=text] { font: inherit; padding: .4rem; border-radius: 5px; border: 1px solid var(--edge); background: transparent; color: inherit; }
+    .gate { font-size: .8rem; color: #d97706; margin-top: .6rem; min-height: 1.2em; }
+    .empty { text-align: center; padding: 4rem 1rem; opacity: .7; }
+    .hint { margin-top: 1.5rem; font-size: .78rem; opacity: .55; border-top: 1px solid var(--edge); padding-top: .8rem; }
+    .hint kbd { border: 1px solid var(--edge); border-radius: 3px; padding: 0 .3rem; }
+  </style>
+</head>
+<body>
+{% if asset %}
+  <header>
+    <h1>Review Queue</h1>
+    <span class="count">{{ position }} of {{ total }} pending</span>
+    <span class="rate" id="rate">—</span>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="preview">
+        Preview lands with the image-generator adapter (DEC-02).<br>
+        <small>Asset {{ asset.asset_id }}</small>
+      </div>
+      <dl class="meta">
+        <dt>Niche</dt><dd>{{ asset.niche_keyword }}</dd>
+        <dt>Variant</dt><dd>#{{ asset.variant.index }}{% if asset.variant.seed %} · seed {{ asset.variant.seed }}{% endif %}</dd>
+        {% if asset.print_spec %}
+        <dt>Print</dt><dd>{{ asset.print_spec.width_inches }}×{{ asset.print_spec.height_inches }}in @ {{ asset.print_spec.dpi }} DPI</dd>
+        <dt>Pixels</dt><dd>{{ asset.print_spec.pixel_width }}×{{ asset.print_spec.pixel_height }}</dd>
+        {% endif %}
+        {% if asset.delivery %}
+        <dt>Files</dt><dd>{{ asset.delivery.files|length }} · {{ (asset.delivery.total_bytes / 1048576)|round(1) }}MB</dd>
+        {% endif %}
+        {% if asset.generation_cost %}
+        <dt>Cost</dt><dd>{{ asset.generation_cost }}</dd>
+        {% endif %}
+      </dl>
+    </div>
+
+    <div>
+      <form method="post" action="/review/{{ asset.asset_id }}/approve" id="approve-form">
+        <fieldset>
+          <legend>IP screening — confirm each</legend>
+          {% for check in checks %}
+          <div class="check">
+            <kbd>{{ loop.index }}</kbd>
+            <input type="checkbox" name="confirmed" value="{{ check.value }}" id="c{{ loop.index }}" class="ip-check">
+            <label for="c{{ loop.index }}">{{ check.label }}</label>
+          </div>
+          {% endfor %}
+          <div class="gate" id="gate"></div>
+        </fieldset>
+        <div class="actions">
+          <button type="submit" class="approve" id="approve-btn" disabled>Approve <kbd>A</kbd></button>
+        </div>
+      </form>
+
+      <form method="post" action="/review/{{ asset.asset_id }}/reject" style="margin-top:1rem">
+        <fieldset>
+          <legend>Reject</legend>
+          <div class="actions">
+            <select name="reason" id="reason">
+              {% for value, label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <input type="text" name="note" placeholder="note (optional)" size="24">
+            <button type="submit" class="reject">Reject <kbd>R</kbd></button>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+  </div>
+
+  <p class="hint">
+    <kbd>1</kbd>–<kbd>{{ checks|length }}</kbd> toggle checks · <kbd>A</kbd> approve · <kbd>R</kbd> reject ·
+    <kbd>J</kbd>/<kbd>K</kbd> next/previous. Approve stays disabled until every check is confirmed —
+    nothing is pre-ticked, because a pre-ticked box is a box nobody reads.
+  </p>
+
+  <script>
+    const boxes = [...document.querySelectorAll('.ip-check')];
+    const btn = document.getElementById('approve-btn');
+    const gate = document.getElementById('gate');
+    const total = boxes.length;
+
+    function sync() {
+      const done = boxes.filter(b => b.checked).length;
+      btn.disabled = done !== total;
+      gate.textContent = done === total ? '' : `${total - done} check${total - done === 1 ? '' : 's'} remaining`;
+    }
+    boxes.forEach(b => b.addEventListener('change', sync));
+    sync();
+
+    // Review speed is the throughput ceiling for the whole business, so the
+    // hands never need to leave the keyboard.
+    const started = performance.now();
+    addEventListener('keydown', e => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' && document.activeElement.type === 'text') return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= total) { boxes[n - 1].checked = !boxes[n - 1].checked; sync(); e.preventDefault(); return; }
+      const k = e.key.toLowerCase();
+      if (k === 'a' && !btn.disabled) { document.getElementById('approve-form').submit(); e.preventDefault(); }
+      if (k === 'r') { document.querySelector('form[action$="/reject"]').submit(); e.preventDefault(); }
+      if (k === 'j') location.search = '?i={{ next_index }}';
+      if (k === 'k') location.search = '?i={{ prev_index }}';
+    });
+
+    setInterval(() => {
+      const secs = (performance.now() - started) / 1000;
+      document.getElementById('rate').textContent = `${secs.toFixed(0)}s on this asset`;
+    }, 1000);
+  </script>
+{% else %}
+  <header><h1>Review Queue</h1></header>
+  <p class="empty">
+    Nothing awaiting review.<br>
+    <small>Assets appear here once they reach the packaged stage.</small>
+  </p>
+{% endif %}
+</body>
+</html>
