@@ -117,3 +117,54 @@ class TestReviewLifecycle:
     def test_given_an_undecided_review_then_it_emits_nothing(self) -> None:
         """No decision means no AssetApproved, so nothing downstream unlocks."""
         assert ReviewDecision.open(uuid4(), "hamid").pull_events() == []
+
+
+class TestApprovalCannotBeForged:
+    """Found by a compliance review of the first version of this file.
+
+    Guarding only inside approve() left the raw constructor open, and the
+    repository that rehydrates rows from the database would have used exactly
+    that path.
+    """
+
+    def test_given_an_approved_decision_with_no_screening_when_constructed_then_raises(
+        self,
+    ) -> None:
+        from kairos.curation.domain.value_objects import ApprovalDecision
+
+        with pytest.raises(ValueError, match="must carry a completed IpScreening"):
+            ReviewDecision(
+                review_id=uuid4(),
+                asset_id=uuid4(),
+                reviewer="attacker",
+                decision=ApprovalDecision(approved=True),
+                screening=None,
+            )
+
+    def test_given_a_rejected_decision_with_no_screening_when_constructed_then_allowed(
+        self,
+    ) -> None:
+        # Rejections need no screening — nothing proceeds from them.
+        from kairos.curation.domain.value_objects import ApprovalDecision
+
+        review = ReviewDecision(
+            review_id=uuid4(),
+            asset_id=uuid4(),
+            reviewer="hamid",
+            decision=ApprovalDecision(approved=False),
+            rejection_reason=RejectionReason.IP_RISK,
+        )
+        assert review.is_decided
+
+    def test_given_a_valid_approval_when_rehydrated_then_allowed(self) -> None:
+        # The shape a repository must reconstruct: approved, with its screening.
+        from kairos.curation.domain.value_objects import ApprovalDecision
+
+        review = ReviewDecision(
+            review_id=uuid4(),
+            asset_id=uuid4(),
+            reviewer="hamid",
+            decision=ApprovalDecision(approved=True),
+            screening=IpScreening.cleared_by("hamid"),
+        )
+        assert review.is_decided

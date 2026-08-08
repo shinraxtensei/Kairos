@@ -39,6 +39,16 @@ class ReviewDecision:
     def __post_init__(self) -> None:
         if not self.reviewer.strip():
             raise ValueError("a review must record its reviewer")
+        # Guarding only inside approve() left the raw constructor wide open:
+        #   ReviewDecision(..., decision=ApprovalDecision(approved=True), screening=None)
+        # produced a fully approved asset that was never screened, and any
+        # repository rehydrating a row would do exactly this. The invariant has
+        # to live where the object is built, not only on the happy path.
+        if self.decision is not None and self.decision.approved and self.screening is None:
+            raise ValueError(
+                "an approved review must carry a completed IpScreening — "
+                "use ReviewDecision.approve() rather than constructing one directly"
+            )
 
     @classmethod
     def open(cls, asset_id: UUID, reviewer: str, review_id: UUID | None = None) -> ReviewDecision:
@@ -56,6 +66,8 @@ class ReviewDecision:
         eighteen months from now, when someone adds a bulk-approve button.
         """
         self._guard_not_decided()
+        # Screening first: if the ApprovalDecision were assigned first and this
+        # raised, the aggregate would be left approved-but-unscreened in memory.
         self.screening = screening
         self.decision = ApprovalDecision(approved=True, note=note)
         self.decided_at = datetime.now(UTC)
