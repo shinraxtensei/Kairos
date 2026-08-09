@@ -461,10 +461,13 @@ Nothing here starts until the core loop has produced revenue. Every item is defe
       Note: the hexagonal payoff. If this requires touching any upstream context, the port was wrong.
 - [ ] **CMP-08** Production-partner disclosure for POD listings.
       Note: non-negotiable once physical ships.
-- [ ] **ENG-48** `AmazonSignalAdapter` (Keepa or Jungle Scout).
-      Note: paid. Run `economics-analyst` first.
-- [ ] **ENG-49** `EbaySignalAdapter`.
-      Note: lowest-value signal. May never be worth it — mark `[-]` if so.
+- [~] **ENG-48** `AmazonSignalAdapter` (Keepa or Jungle Scout).
+      Note: **built, deliberately disabled.** Keepa, never scraping. Economics run first as CLAUDE.md requires, and they say wait: ~$31/mo is **78% of the $40 monthly cap**, leaving $8.68 for generation — ~6.6 winners/mo at 3%, cost-per-winning-design **$6.08**. Needs both `KAIROS_KEEPA_API_KEY` and `KAIROS_KEEPA_ENABLED=true`; a key alone must not start spending. Sales rank maps to RELATIVE_INDEX (a rank is category-relative, not a volume), clamped at 500,000. Spend guard runs before the request.
+      Reopen when revenue justifies it — the switch is the only change needed.
+- [~] **ENG-49** `EbaySignalAdapter`.
+      Note: **built; needs free credentials to switch on** — developer.ebay.com → Application Keys → `KAIROS_EBAY_CLIENT_ID`/`_SECRET`. Absent credentials skip the source rather than fake it.
+      Official Browse API, free tier, no scraping. **Measures competition, not demand**: `item_summary/search` returns active-listing counts; sold-item data needs Marketplace Insights at a higher tier. OAuth token cached per run.
+      Revises this task's original "lowest-value signal" note — it is free and supplies the **competition axis the leaderboard had been missing entirely**.
 - [ ] **ENG-50** Multi-model A/B testing for image generation.
       Note:
 - [ ] **ENG-51** ML-based niche ranking — **only if the weighted formula has demonstrably failed.**
