@@ -403,12 +403,13 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 - [~] **ENG-38** Enforce the cap — `BudgetCapReached` pauses Trend Discovery and Content Generation.
       Note: `MeteredSpend.metered()` is a context manager that authorizes **before** the paid call and records after, so a refusal happens before money leaves. Tested with a fake API that counts calls: on a breached cap, `calls == 0`. A vendor failure inside the block records nothing, since a call that errored was not billed.
       Remaining: wiring it into the actual adapters. **The failure mode is a paid call that never goes through `metered()`** — the guard cannot catch what does not use it. Every new paid adapter must be checked by hand until there is an automated way to prove it.
-- [ ] **ENG-39** Budget dashboard with daily/monthly burn.
-      Note:
+- [x] **ENG-39** Budget dashboard with daily/monthly burn.
+      Note: `/budget` plus `/api/budget`. Both meters, spend by category, and a paused banner. Selling fees are shown but labelled "no — a selling fee", so the page cannot be misread as being closer to the cap than it is.
+      **Persistence stores cost events only; totals are summed on read.** A stored running counter drifts the moment anything is inserted, corrected or backdated outside the one path that maintains it, and a cap computed from a drifted counter fails silently in the expensive direction. Summing also makes period rollover free — a new day is just a different WHERE clause, with no ledger anyone has to remember to roll forward.
 - [ ] **ENG-40** Cost-per-winning-listing calculation, using real M5 numbers.
       Note: run `economics-analyst` once there's a month of data.
 - [ ] **DEC-03** Set real budget caps from BIZ-07 + BIZ-09.
-      Note: closes CONTEXT.md §10's open question.
+      Note: closes CONTEXT.md §10's open question. **Placeholders are live now** — `KAIROS_DAILY_BUDGET=2.00`, `KAIROS_MONTHLY_BUDGET=40.00` in Settings. Deliberately low so an unattended loop stops early and cheaply rather than at a plausible-looking figure nobody chose. Replace from the spreadsheet, not by feel.
 - [ ] **OPS-03** Deployment target + deploy process.
       Note: cheapest thing that runs one web + one worker + Postgres + Redis. A single small VPS is fine. Don't over-buy.
 - [ ] **OPS-04** Error alerting to somewhere you actually read.

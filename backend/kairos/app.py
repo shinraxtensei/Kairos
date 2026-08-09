@@ -1,14 +1,20 @@
 """FastAPI entrypoint. Run: uvicorn kairos.app:app --reload"""
 
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from kairos.budgeting import public as budgeting
+from kairos.budgeting.domain.spend_ledger import category_is_metered
+from kairos.budgeting.domain.value_objects import BudgetPeriod, CostCategory
+from kairos.budgeting.infrastructure.models import CostEventRecord
 from kairos.config import get_settings
 from kairos.content_generation.domain.generated_asset import GeneratedAsset
 from kairos.content_generation.infrastructure.repository import (
@@ -19,6 +25,7 @@ from kairos.curation.domain.value_objects import IpCheck, RejectionReason
 from kairos.curation.infrastructure.repository import SqlAlchemyReviewDecisionRepository
 from kairos.db import engine, get_session
 from kairos.niche_ranking.infrastructure.repository import SqlAlchemyNicheRepository
+from kairos.shared_kernel.money import Money
 
 app = FastAPI(title="Kairos", version="0.1.0")
 
@@ -233,3 +240,86 @@ def api_review_queue(
             for asset in pending
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Budget dashboard (ENG-39).
+# ---------------------------------------------------------------------------
+
+CATEGORY_LABELS = {
+    CostCategory.IMAGE_GENERATION: "Image generation",
+    CostCategory.UPSCALING: "Upscaling",
+    CostCategory.TREND_DATA: "Trend data",
+    CostCategory.LISTING_FEE: "Etsy listing fee",
+    CostCategory.TRANSACTION_FEE: "Etsy transaction fee",
+    CostCategory.ADVERTISING: "Advertising",
+}
+
+
+def _month_start_utc() -> datetime:
+    first = datetime.now(UTC).date().replace(day=1)
+    return datetime.combine(first, datetime.min.time(), tzinfo=UTC)
+
+
+def _budget_view(session: Session) -> dict[str, object]:
+    ledger = budgeting.current_ledger(session)
+
+    meters = []
+    for period in BudgetPeriod:
+        cap = ledger.limit.cap_for(period)
+        spent = ledger.spent_today if period is BudgetPeriod.DAILY else ledger.spent_this_month
+        percent = min(float(spent.amount / cap.amount) * 100, 100.0)
+        meters.append(
+            {
+                "period": period.value,
+                "cap": str(cap),
+                "spent": str(spent),
+                "remaining": str(ledger.remaining(period)),
+                "percent": round(percent, 1),
+                "state": "over" if percent >= 100 else "warn" if percent >= 75 else "",
+            }
+        )
+
+    totals = session.execute(
+        select(
+            CostEventRecord.category,
+            func.sum(CostEventRecord.amount),
+            func.count(CostEventRecord.cost_id),
+        )
+        .where(CostEventRecord.occurred_at >= _month_start_utc())
+        .group_by(CostEventRecord.category)
+        .order_by(func.sum(CostEventRecord.amount).desc())
+    ).all()
+
+    return {
+        "currency": ledger.limit.currency,
+        "paused": ledger.is_paused,
+        "meters": meters,
+        "by_category": [
+            {
+                "category": category,
+                "label": CATEGORY_LABELS.get(CostCategory(category), category),
+                "total": str(Money(Decimal(str(total)), ledger.limit.currency)),
+                "count": count,
+                "metered": category_is_metered(CostCategory(category)),
+            }
+            for category, total, count in totals
+        ],
+    }
+
+
+@app.get("/budget", response_class=HTMLResponse)
+def budget_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request, name="budget.html", context=_budget_view(session)
+    )
+
+
+@app.get("/api/budget")
+def api_budget(
+    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
+) -> dict[str, object]:
+    return _budget_view(session)
