@@ -117,6 +117,7 @@ containers = [
     "kairos.content_generation",
     "kairos.listing_authoring",
     "kairos.budgeting",
+    "kairos.creative_direction",
 ]
 
 [[tool.importlinter.contracts]]
@@ -129,6 +130,7 @@ source_modules = [
     "kairos.content_generation.domain",
     "kairos.listing_authoring.domain",
     "kairos.budgeting.domain",
+    "kairos.creative_direction.domain",
 ]
 forbidden_modules = [
     "sqlalchemy",
@@ -160,6 +162,7 @@ modules = [
     "kairos.content_generation",
     "kairos.listing_authoring",
     "kairos.budgeting",
+    "kairos.creative_direction",
 ]
 # Every cross-context edge is listed here, one line each, rather than the
 # contract being weakened. Adding an edge is a review decision, and anything

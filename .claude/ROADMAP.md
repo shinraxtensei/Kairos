@@ -325,8 +325,11 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       `ProcessingStage` is a strict forward-only ladder. Upscaling before background removal bakes the background into the print at full resolution — expensive and unfixable — so skipping or repeating a stage raises. A failed asset can never be advanced or reviewed.
       Generation cost rides on `AssetGenerated` as primitives, so Budgeting can record spend without the two contexts sharing a `Money` import through an event payload.
       Still to do: persistence, application service, and adapters.
-- [ ] **ENG-25** `creative_direction` domain: `StyleGuide`, `PromptTemplate`, `VariationSet`.
-      Note: keep prompt templates in the DB, not in code. You'll tune them constantly.
+- [x] **ENG-25** `creative_direction` domain: `StyleGuide`, `PromptTemplate`, `VariationSet`.
+      Note: **this is where CONTEXT.md §2's no-templated-bulk-generation rule actually lives**, and it is now structural rather than a policy someone remembers. A `VariationSet` is refused if variations differ along fewer than two `StyleAxis` values ("a template with a swapped word"), if any two are identical (case-insensitively), or if a single niche exceeds 12 variations — volume from one direction is itself the detection signal. A `PromptTemplate` with no slots is refused outright: it can only produce one design repeated.
+      Deliberately no `seed` axis. Two images from one prompt with different seeds are the same design twice, which is exactly what the originality rule exists to stop.
+      `PromptSetGenerated` carries the run size, so Budgeting can price a whole run **before** the first paid call rather than discovering the total halfway through.
+      Template text is data, not code — it belongs in the DB once persistence lands, since these get tuned constantly. Persistence and the `DefineStyleGuide` application service are still to do.
 - [ ] **ENG-26** Listing copy generation — title, 13 tags (≤20 chars each), description, via an LLM port. Eval against the BIZ-14 hand-written examples.
       Note: R2 gap. This is the traffic mechanism; without it, published listings are invisible.
 - [ ] **ENG-27** Chosen `ImageGenerator` adapter + `rembg` for background removal (local, free).
