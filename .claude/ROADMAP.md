@@ -395,10 +395,14 @@ This is not busywork and it is not optional. Automating a loop you have never ru
 
 **Exit criterion:** the pipeline runs unattended for a week without cost surprises or silent failures.
 
-- [ ] **ENG-37** `budgeting` domain: `SpendLedger`, `BudgetLimit`, `CostEvent`. Events: `SpendRecorded`, `BudgetCapReached`, `PipelinePaused`.
-      Note: test the threshold at *exactly* the cap, not just over it.
-- [ ] **ENG-38** Enforce the cap — `BudgetCapReached` pauses Trend Discovery and Content Generation.
-      Note: verify every paid call path actually honors the pause. An unmetered paid call is the real failure mode.
+- [x] **ENG-37** `budgeting` domain: `SpendLedger`, `BudgetLimit`, `CostEvent`. Events: `SpendRecorded`, `BudgetCapReached`, `PipelinePaused`.
+      Note: threshold tested at **exactly** the cap (125 × $0.04 = $5.00 fires it; 124 does not), and `authorize` refuses at the cap rather than past it — a ledger sitting on its cap has no room for the next call.
+      **Daily and monthly caps both**: a daily cap alone lets a slow leak run all month, a monthly cap alone lets a runaway loop burn the month in an hour. `BudgetLimit` rejects a monthly cap below the daily one, which would silently disable the tighter guard.
+      `record` never refuses — the money is already gone, and a ledger that rejects reality is worse than one reporting an overspend. `BudgetCapReached` fires only on the transition, so late-arriving costs cannot drown the alert that mattered.
+      Etsy listing and transaction fees are **not metered**: they are consequences of selling, and counting them toward a generation cap would pause generation *because something sold*.
+- [~] **ENG-38** Enforce the cap — `BudgetCapReached` pauses Trend Discovery and Content Generation.
+      Note: `MeteredSpend.metered()` is a context manager that authorizes **before** the paid call and records after, so a refusal happens before money leaves. Tested with a fake API that counts calls: on a breached cap, `calls == 0`. A vendor failure inside the block records nothing, since a call that errored was not billed.
+      Remaining: wiring it into the actual adapters. **The failure mode is a paid call that never goes through `metered()`** — the guard cannot catch what does not use it. Every new paid adapter must be checked by hand until there is an automated way to prove it.
 - [ ] **ENG-39** Budget dashboard with daily/monthly burn.
       Note:
 - [ ] **ENG-40** Cost-per-winning-listing calculation, using real M5 numbers.
