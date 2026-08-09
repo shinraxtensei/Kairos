@@ -373,12 +373,13 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       Note: `AIDisclosure` is a required constructor argument with no default, so omitting it is a type error at the call site rather than a runtime check someone can forget. Only "Designed by" is expressible — there is no "Made by" variant and no "no AI used" variant, since every asset here is AI-assisted by construction.
       `ListingCopy` closes the other half of the R2 SEO gap: ≤140-char title, ≤13 tags of ≤20 chars, no duplicates, minimum description length. `PricingRule` refuses anything under $1.00, where Etsy's $0.20 fee plus ~6.5% would eat the margin.
       Persistence for this context is still to do; the domain and the gate are done.
-- [ ] **ENG-32** `fulfillment` domain: `Listing`, `FulfillmentChannel` port, `ListingPublished` / `ListingPublishFailed`.
-      Note:
+- [x] **ENG-32** `fulfillment` domain: `Listing`, `FulfillmentChannel` port, `ListingPublished` / `ListingPublishFailed`.
+      Note: the **domain was never Etsy-blocked** — only the adapter is. Port ready for `EtsyDigitalDownloadAdapter` and, in Phase 2, Printful/Printify with no upstream change.
 - [ ] **ENG-33** `EtsyDigitalDownloadAdapter`.
       Note:
-- [ ] **ENG-34** **Publish idempotency** — an idempotency key per draft; a retried or redelivered task must not create a second listing.
-      Note: R2 gap. $0.20 per duplicate, non-refundable, and Celery redelivery is normal operation not an edge case.
+- [x] **ENG-34** **Publish idempotency** — an idempotency key per draft; a retried or redelivered task must not create a second listing.
+      Note: guarded in **three** places, because $0.20 per duplicate is non-refundable and `task_acks_late` makes redelivery routine. The key is **derived from the draft id**, not generated — a generated key is new on every retry and therefore idempotent against nothing. The listing id is derived too, so a retry cannot insert a rival row before the guard looks. `listings.draft_id` is UNIQUE, so even a bypassed guard cannot produce a second row.
+      `force=True` **still refuses** rather than republishing: a force that creates a second paid listing is a footgun with a friendly name. A *failed* publish stays retryable — that is what distinguishes it from a successful one.
 - [ ] **ENG-35** Publish as **draft** first, with a manual "go live" action for the first N listings.
       Note: keeps a human between the pipeline and the public shop until it has earned trust. Remove the training wheel deliberately, not by forgetting.
 - [ ] **ENG-36** Live Listings read model.
@@ -415,16 +416,17 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       Note: closes CONTEXT.md §10's open question. **Placeholders are live now** — `KAIROS_DAILY_BUDGET=2.00`, `KAIROS_MONTHLY_BUDGET=40.00` in Settings. Deliberately low so an unattended loop stops early and cheaply rather than at a plausible-looking figure nobody chose. Replace from the spreadsheet, not by feel.
 - [ ] **OPS-03** Deployment target + deploy process.
       Note: cheapest thing that runs one web + one worker + Postgres + Redis. A single small VPS is fine. Don't over-buy.
-- [ ] **OPS-04** Error alerting to somewhere you actually read.
-      Note: a silently dead scheduled job is the classic solo-project failure.
+- [~] **OPS-04** Error alerting to somewhere you actually read.
+      Note: `observability.alert()` exists and fires when every trend source fails. **It currently logs CRITICAL and nothing more** — that is honest rather than pretending there is a pager. Route it somewhere real before running unattended. The runbook leads with the case it cannot catch: a scheduled job that stopped raises nothing, so only the freshness query finds it.
 - [ ] **OPS-05** Postgres backups, restore **tested** at least once.
       Note: an untested backup is not a backup.
 - [ ] **OPS-06** Secrets management in prod. Etsy refresh-token rotation handled.
       Note:
-- [ ] **OPS-07** Structured logging with a correlation ID traced across the pipeline.
-      Note:
-- [ ] **OPS-08** Runbook: what to do when a source breaks, publish fails, or the budget cap trips.
-      Note:
+- [x] **OPS-07** Structured logging with a correlation ID traced across the pipeline.
+      Note: JSON lines outside local dev, plain text locally. One id per task, set at the top of `collect` and `rank`; nested blocks keep the outer id so a task calling another does not lose the thread.
+      **Secrets are redacted by key name, including nested ones.** The Etsy refresh token grants publish rights for 90 days, and a leak of it would look like nothing was wrong.
+- [x] **OPS-08** Runbook: what to do when a source breaks, publish fails, or the budget cap trips.
+      Note: [.claude/RUNBOOK.md](RUNBOOK.md). Leads with the failure that produces no error — a scheduled job that stopped — because that is the likeliest serious one for a solo operator and no error tracker catches it. Also covers Etsy removals (treat as a batch problem, not a single listing), budget pauses, publish retries, and the local-dev papercuts.
 
 **M6 exit:** one week unattended, no cost surprise, no silent failure.
 
