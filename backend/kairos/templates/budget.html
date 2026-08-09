@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kairos — Budget</title>
+  <style>
+    :root { color-scheme: light dark; --edge: color-mix(in srgb, currentColor 16%, transparent); }
+    body { font: 15px/1.5 ui-sans-serif, system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
+    h1 { font-size: 1.3rem; margin-bottom: .2rem; }
+    .sub { opacity: .65; margin-top: 0; font-size: .9rem; }
+    .paused { border-left: 3px solid #dc2626; background: color-mix(in srgb, #dc2626 9%, transparent); padding: .8rem 1rem; border-radius: 0 4px 4px 0; margin: 1.2rem 0; }
+    .meter { margin: 1.4rem 0; }
+    .meter h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin: 0 0 .4rem; }
+    .bar { height: .75rem; border-radius: 4px; background: color-mix(in srgb, currentColor 12%, transparent); overflow: hidden; }
+    .fill { height: 100%; border-radius: 4px; background: #059669; transition: width .3s; }
+    .fill.warn { background: #d97706; }
+    .fill.over { background: #dc2626; }
+    .figures { display: flex; justify-content: space-between; font-size: .85rem; margin-top: .35rem; font-variant-numeric: tabular-nums; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1.6rem; }
+    th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--edge); }
+    th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .note { margin-top: 2rem; font-size: .8rem; opacity: .6; border-top: 1px solid var(--edge); padding-top: .8rem; }
+  </style>
+</head>
+<body>
+  <h1>Budget</h1>
+  <p class="sub">{{ currency }} · caps are placeholders until DEC-03 is set from the unit-economics model</p>
+
+  {% if paused %}
+  <div class="paused">
+    <strong>Pipeline paused.</strong> Trend Discovery and Content Generation stop
+    on a breached cap; Curation and Analytics keep running, since reviewing work
+    you already paid for costs nothing.
+  </div>
+  {% endif %}
+
+  {% for meter in meters %}
+  <div class="meter">
+    <h2>{{ meter.period }}</h2>
+    <div class="bar">
+      <div class="fill {{ meter.state }}" style="width: {{ meter.percent }}%"></div>
+    </div>
+    <div class="figures">
+      <span>{{ meter.spent }} of {{ meter.cap }}</span>
+      <span>{{ meter.remaining }} left</span>
+    </div>
+  </div>
+  {% endfor %}
+
+  <table>
+    <thead>
+      <tr><th>Category</th><th class="num">Spent this month</th><th class="num">Events</th><th>Metered</th></tr>
+    </thead>
+    <tbody>
+      {% for row in by_category %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td class="num">{{ row.total }}</td>
+        <td class="num">{{ row.count }}</td>
+        <td>{{ "yes" if row.metered else "no — a selling fee" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="opacity:.6">No spend recorded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="note">
+    Etsy listing and transaction fees are recorded but not metered: they follow
+    from selling rather than from choosing to spend, so counting them toward a
+    generation cap would pause generation because something sold.
+  </p>
+</body>
+</html>

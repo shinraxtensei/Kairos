@@ -112,6 +112,10 @@ class SpendLedger:
                 amount=str(cost.amount.amount),
                 currency=cost.amount.currency,
                 reference=cost.reference,
+                # The cost's own timestamp, not "now". A backdated cost recorded
+                # today belongs to the day it happened, or it lands in the wrong
+                # daily total and the cap for that day is wrong forever.
+                occurred_at=cost.occurred_at,
             )
         )
 

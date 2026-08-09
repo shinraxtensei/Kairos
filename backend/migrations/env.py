@@ -13,10 +13,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from kairos.config import get_settings
-
 # Imported for the table-registration side effect — add every context's models
 # here as they are built, or autogenerate silently emits empty migrations.
+from kairos.budgeting.infrastructure import models as budget_models  # noqa: F401
+from kairos.config import get_settings
 from kairos.content_generation.infrastructure import models as asset_models  # noqa: F401
 from kairos.curation.infrastructure import models as curation_models  # noqa: F401
 from kairos.db import Base
