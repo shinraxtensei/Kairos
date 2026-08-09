@@ -10,11 +10,14 @@ import logging
 from typing import Any
 
 from kairos.celery_app import celery_app
+from kairos.config import get_settings
 from kairos.db import SessionLocal
 from kairos.trend_discovery.application.fetch_trend_signals import FetchTrendSignals
 from kairos.trend_discovery.domain.ports import TrendSource
 from kairos.trend_discovery.domain.value_objects import Keyword
+from kairos.trend_discovery.infrastructure.ebay import EbaySignalAdapter
 from kairos.trend_discovery.infrastructure.google_trends import GoogleTrendsAdapter
+from kairos.trend_discovery.infrastructure.keepa import AmazonSignalAdapter
 from kairos.trend_discovery.infrastructure.repository import SqlAlchemyTrendSignalRepository
 
 logger = logging.getLogger(__name__)
@@ -31,11 +34,26 @@ DEFAULT_SEEDS = [
 
 
 def build_sources() -> list[TrendSource]:
-    """Sources available without credentials.
+    """Every source with usable credentials. Missing ones are skipped, not faked.
 
     EtsyTrendAdapter joins on ENG-18 once M0 supplies the API keys.
     """
-    return [GoogleTrendsAdapter()]
+    settings = get_settings()
+    sources: list[TrendSource] = [GoogleTrendsAdapter()]
+
+    if settings.ebay_client_id and settings.ebay_client_secret:
+        sources.append(EbaySignalAdapter(settings.ebay_client_id, settings.ebay_client_secret))
+    else:
+        logger.info("ebay credentials absent — skipping that source")
+
+    # Paid, and deliberately behind a second switch: having a key should not be
+    # enough to start spending.
+    if settings.keepa_enabled and settings.keepa_api_key:
+        sources.append(AmazonSignalAdapter(settings.keepa_api_key))
+    elif settings.keepa_api_key:
+        logger.info("keepa key present but KAIROS_KEEPA_ENABLED is false — skipping")
+
+    return sources
 
 
 @celery_app.task(name="kairos.trend_discovery.collect")

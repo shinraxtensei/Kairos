@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
+import httpx
 import pandas as pd
 import pytest
 
 from kairos.trend_discovery.domain.ports import TrendSource, TrendSourceError
 from kairos.trend_discovery.domain.value_objects import Keyword, SourcePlatform, VolumeScale
+from kairos.trend_discovery.infrastructure.ebay import EbaySignalAdapter
 from kairos.trend_discovery.infrastructure.google_trends import GoogleTrendsAdapter
+from kairos.trend_discovery.infrastructure.keepa import AmazonSignalAdapter
 from kairos.trend_discovery.tests.fakes import FakeTrendSource
 
 SEEDS = [Keyword("cat sticker"), Keyword("moon phase print")]
@@ -57,9 +60,30 @@ def _fake_adapter() -> TrendSource:
     return FakeTrendSource(SourcePlatform.ETSY)
 
 
-# Register every TrendSource adapter here. EtsyTrendAdapter joins on ENG-18.
+def _stub_http(payload: dict[str, object]) -> httpx.Client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/token"):
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 7200})
+        return httpx.Response(200, json=payload)
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def _ebay_adapter() -> TrendSource:
+    return EbaySignalAdapter("id", "secret", http=_stub_http({"total": 4182}))
+
+
+def _keepa_adapter() -> TrendSource:
+    return AmazonSignalAdapter("key", http=_stub_http({"products": [{"salesRankReference": 1200}]}))
+
+
+# Register every TrendSource adapter here. Adding one is a single entry, and it
+# then has to satisfy the same behavioural contract as the rest — which is what
+# makes swapping a source safe. EtsyTrendAdapter joins on ENG-18.
 ADAPTERS: list[tuple[str, Callable[[], TrendSource]]] = [
     ("google_trends", _google_adapter),
+    ("ebay", _ebay_adapter),
+    ("keepa", _keepa_adapter),
     ("fake", _fake_adapter),
 ]
 

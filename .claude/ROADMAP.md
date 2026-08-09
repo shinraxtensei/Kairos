@@ -325,8 +325,11 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       `ProcessingStage` is a strict forward-only ladder. Upscaling before background removal bakes the background into the print at full resolution — expensive and unfixable — so skipping or repeating a stage raises. A failed asset can never be advanced or reviewed.
       Generation cost rides on `AssetGenerated` as primitives, so Budgeting can record spend without the two contexts sharing a `Money` import through an event payload.
       Still to do: persistence, application service, and adapters.
-- [ ] **ENG-25** `creative_direction` domain: `StyleGuide`, `PromptTemplate`, `VariationSet`.
-      Note: keep prompt templates in the DB, not in code. You'll tune them constantly.
+- [x] **ENG-25** `creative_direction` domain: `StyleGuide`, `PromptTemplate`, `VariationSet`.
+      Note: **this is where CONTEXT.md §2's no-templated-bulk-generation rule actually lives**, and it is now structural rather than a policy someone remembers. A `VariationSet` is refused if variations differ along fewer than two `StyleAxis` values ("a template with a swapped word"), if any two are identical (case-insensitively), or if a single niche exceeds 12 variations — volume from one direction is itself the detection signal. A `PromptTemplate` with no slots is refused outright: it can only produce one design repeated.
+      Deliberately no `seed` axis. Two images from one prompt with different seeds are the same design twice, which is exactly what the originality rule exists to stop.
+      `PromptSetGenerated` carries the run size, so Budgeting can price a whole run **before** the first paid call rather than discovering the total halfway through.
+      Template text is data, not code — it belongs in the DB once persistence lands, since these get tuned constantly. Persistence and the `DefineStyleGuide` application service are still to do.
 - [ ] **ENG-26** Listing copy generation — title, 13 tags (≤20 chars each), description, via an LLM port. Eval against the BIZ-14 hand-written examples.
       Note: R2 gap. This is the traffic mechanism; without it, published listings are invisible.
 - [ ] **ENG-27** Chosen `ImageGenerator` adapter + `rembg` for background removal (local, free).
@@ -458,10 +461,13 @@ Nothing here starts until the core loop has produced revenue. Every item is defe
       Note: the hexagonal payoff. If this requires touching any upstream context, the port was wrong.
 - [ ] **CMP-08** Production-partner disclosure for POD listings.
       Note: non-negotiable once physical ships.
-- [ ] **ENG-48** `AmazonSignalAdapter` (Keepa or Jungle Scout).
-      Note: paid. Run `economics-analyst` first.
-- [ ] **ENG-49** `EbaySignalAdapter`.
-      Note: lowest-value signal. May never be worth it — mark `[-]` if so.
+- [~] **ENG-48** `AmazonSignalAdapter` (Keepa or Jungle Scout).
+      Note: **built, deliberately disabled.** Keepa, never scraping. Economics run first as CLAUDE.md requires, and they say wait: ~$31/mo is **78% of the $40 monthly cap**, leaving $8.68 for generation — ~6.6 winners/mo at 3%, cost-per-winning-design **$6.08**. Needs both `KAIROS_KEEPA_API_KEY` and `KAIROS_KEEPA_ENABLED=true`; a key alone must not start spending. Sales rank maps to RELATIVE_INDEX (a rank is category-relative, not a volume), clamped at 500,000. Spend guard runs before the request.
+      Reopen when revenue justifies it — the switch is the only change needed.
+- [~] **ENG-49** `EbaySignalAdapter`.
+      Note: **built; needs free credentials to switch on** — developer.ebay.com → Application Keys → `KAIROS_EBAY_CLIENT_ID`/`_SECRET`. Absent credentials skip the source rather than fake it.
+      Official Browse API, free tier, no scraping. **Measures competition, not demand**: `item_summary/search` returns active-listing counts; sold-item data needs Marketplace Insights at a higher tier. OAuth token cached per run.
+      Revises this task's original "lowest-value signal" note — it is free and supplies the **competition axis the leaderboard had been missing entirely**.
 - [ ] **ENG-50** Multi-model A/B testing for image generation.
       Note:
 - [ ] **ENG-51** ML-based niche ranking — **only if the weighted formula has demonstrably failed.**
