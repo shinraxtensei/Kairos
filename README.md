@@ -2,6 +2,7 @@
 
 Trend-discovery-to-Etsy-listing automation. Watches multiple platforms for rising niches, generates AI-assisted designs, routes every one through mandatory human curation, publishes approved designs as Etsy listings. Digital downloads first; print-on-demand is a Phase 2 adapter behind the same port, not a rewrite.
 
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — how the code is organised: contexts, layers, ports, the compliance gate, recurring patterns. Read this to navigate the codebase.
 - **[.claude/ROADMAP.md](.claude/ROADMAP.md)** — PRD, milestones M0-M8, task tracker, decisions, risks. **Start here.**
 - **[CONTEXT.md](CONTEXT.md)** — full domain model (nine bounded contexts), data-source strategy, unit economics. The reference doc.
 - **[CLAUDE.md](CLAUDE.md)** — the enforceable subset: dependency rule, compliance gates, testing layers.
@@ -41,3 +42,5 @@ make dev
 `make help` lists everything. The ones you'll want: `check` (everything CI runs), `test`, `fmt`, `worker`, `collect`, `rank`, `down`.
 
 `lint-imports` enforces the hexagonal dependency rule from [CLAUDE.md](CLAUDE.md). If it fails, the architecture is broken — don't silence it.
+
+When something breaks in production, [.claude/RUNBOOK.md](.claude/RUNBOOK.md).

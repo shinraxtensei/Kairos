@@ -18,8 +18,11 @@ from sqlalchemy import engine_from_config, pool
 from kairos.budgeting.infrastructure import models as budget_models  # noqa: F401
 from kairos.config import get_settings
 from kairos.content_generation.infrastructure import models as asset_models  # noqa: F401
+from kairos.creative_direction.infrastructure import models as style_models  # noqa: F401
 from kairos.curation.infrastructure import models as curation_models  # noqa: F401
 from kairos.db import Base
+from kairos.fulfillment.infrastructure import models as listing_models  # noqa: F401
+from kairos.listing_authoring.infrastructure import models as draft_models  # noqa: F401
 from kairos.niche_ranking.infrastructure import models as niche_models  # noqa: F401
 from kairos.trend_discovery.infrastructure import models  # noqa: F401
 

@@ -11,7 +11,9 @@ from celery import Celery
 from celery.schedules import crontab
 
 from kairos.config import get_settings
+from kairos.observability import configure_logging
 
+configure_logging()
 settings = get_settings()
 
 celery_app = Celery(

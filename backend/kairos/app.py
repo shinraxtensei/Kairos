@@ -25,7 +25,10 @@ from kairos.curation.domain.value_objects import IpCheck, RejectionReason
 from kairos.curation.infrastructure.repository import SqlAlchemyReviewDecisionRepository
 from kairos.db import engine, get_session
 from kairos.niche_ranking.infrastructure.repository import SqlAlchemyNicheRepository
+from kairos.observability import configure_logging
 from kairos.shared_kernel.money import Money
+
+configure_logging()
 
 app = FastAPI(title="Kairos", version="0.1.0")
 

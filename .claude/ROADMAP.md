@@ -255,8 +255,12 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
 - [x] **ENG-19** `GoogleTrendsAdapter` (`pytrends`).
       Note: works against the live API. Three real behaviours handled: the final row is `isPartial` (an incomplete period that reads as a collapse and would drag momentum down on exactly the rising keywords we hunt); **one term per request** (see below); and a 2s inter-request delay because Google 429s readily. Signal ids are `uuid5(platform, keyword, observation-day)` so redelivery cannot duplicate a row.
       **Bug found in a live run:** Google rescales its 0-100 index *within a batch*, so `moon phase print` scored **1** beside `cat sticker` — not low interest, just a shared request. Fetching one term per request makes the index relative to that keyword's own history (`8` for the same keyword — an 8× distortion). **Google Trends is the momentum source; Etsy supplies absolute demand.** Costs one request per seed; the delay default is a guess — tune it against real seed-list sizes.
-- [ ] **ENG-20** `TikTokCreativeCenterAdapter` — best-effort, explicitly non-critical.
-      Note: **not started.** Internal JSON endpoints, not a sanctioned API (R5). Isolate it; let it fail loudly and harmlessly.
+- [-] **ENG-20** `TikTokCreativeCenterAdapter` — best-effort, explicitly non-critical.
+      Note: **dropped — tested and not obtainable without an account.** Measured 2026-08-19 against the live endpoints:
+      `creative_radar_api/v1/popular_trend/hashtag/list` returns HTTP **200** with body `{"code":40101,"msg":"no permission"}`. The 200 is misleading; the payload is a refusal.
+      Also evaluated **Pinterest Trends** at the same time (CONTEXT.md §5 calls it a scraping-tolerant fallback): `trends.pinterest.com` returns a React shell whose embedded `__PWS_DATA__` contains **no trend data at all** unauthenticated — the only matching keys are experiment flags. Data arrives via authenticated XHR, and the page ships CAPTCHA handling.
+      Evaluated **Scrapling** (BSD-3, free, TLS impersonation + adaptive selectors) as the tool for both. The tool is good; it does not help. Neither target is gated on parsing or fingerprinting — both are gated on **being logged in**. That means an account to risk on each platform, session and CAPTCHA handling, and breakage on every deploy they make. Same trap as scraping Amazon, at a lower sticker price.
+      **Reopen only if** TikTok or Pinterest expose a real public API, or if the momentum signal becomes worth an account. Note it would still only add *momentum*, which Google Trends already supplies — the gap is absolute demand, and that is Etsy and Keepa.
 - [x] **ENG-21** Persist raw payloads to JSONB alongside the parsed aggregate.
       Note: full series stored per signal (92 points on a 3-month daily window). Repository upserts with `ON CONFLICT DO NOTHING`.
 - [x] **ENG-22** Celery beat schedule for periodic collection.
@@ -373,12 +377,13 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       Note: `AIDisclosure` is a required constructor argument with no default, so omitting it is a type error at the call site rather than a runtime check someone can forget. Only "Designed by" is expressible — there is no "Made by" variant and no "no AI used" variant, since every asset here is AI-assisted by construction.
       `ListingCopy` closes the other half of the R2 SEO gap: ≤140-char title, ≤13 tags of ≤20 chars, no duplicates, minimum description length. `PricingRule` refuses anything under $1.00, where Etsy's $0.20 fee plus ~6.5% would eat the margin.
       Persistence for this context is still to do; the domain and the gate are done.
-- [ ] **ENG-32** `fulfillment` domain: `Listing`, `FulfillmentChannel` port, `ListingPublished` / `ListingPublishFailed`.
-      Note:
+- [x] **ENG-32** `fulfillment` domain: `Listing`, `FulfillmentChannel` port, `ListingPublished` / `ListingPublishFailed`.
+      Note: the **domain was never Etsy-blocked** — only the adapter is. Port ready for `EtsyDigitalDownloadAdapter` and, in Phase 2, Printful/Printify with no upstream change.
 - [ ] **ENG-33** `EtsyDigitalDownloadAdapter`.
       Note:
-- [ ] **ENG-34** **Publish idempotency** — an idempotency key per draft; a retried or redelivered task must not create a second listing.
-      Note: R2 gap. $0.20 per duplicate, non-refundable, and Celery redelivery is normal operation not an edge case.
+- [x] **ENG-34** **Publish idempotency** — an idempotency key per draft; a retried or redelivered task must not create a second listing.
+      Note: guarded in **three** places, because $0.20 per duplicate is non-refundable and `task_acks_late` makes redelivery routine. The key is **derived from the draft id**, not generated — a generated key is new on every retry and therefore idempotent against nothing. The listing id is derived too, so a retry cannot insert a rival row before the guard looks. `listings.draft_id` is UNIQUE, so even a bypassed guard cannot produce a second row.
+      `force=True` **still refuses** rather than republishing: a force that creates a second paid listing is a footgun with a friendly name. A *failed* publish stays retryable — that is what distinguishes it from a successful one.
 - [ ] **ENG-35** Publish as **draft** first, with a manual "go live" action for the first N listings.
       Note: keeps a human between the pipeline and the public shop until it has earned trust. Remove the training wheel deliberately, not by forgetting.
 - [ ] **ENG-36** Live Listings read model.
@@ -415,16 +420,17 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       Note: closes CONTEXT.md §10's open question. **Placeholders are live now** — `KAIROS_DAILY_BUDGET=2.00`, `KAIROS_MONTHLY_BUDGET=40.00` in Settings. Deliberately low so an unattended loop stops early and cheaply rather than at a plausible-looking figure nobody chose. Replace from the spreadsheet, not by feel.
 - [ ] **OPS-03** Deployment target + deploy process.
       Note: cheapest thing that runs one web + one worker + Postgres + Redis. A single small VPS is fine. Don't over-buy.
-- [ ] **OPS-04** Error alerting to somewhere you actually read.
-      Note: a silently dead scheduled job is the classic solo-project failure.
+- [~] **OPS-04** Error alerting to somewhere you actually read.
+      Note: `observability.alert()` exists and fires when every trend source fails. **It currently logs CRITICAL and nothing more** — that is honest rather than pretending there is a pager. Route it somewhere real before running unattended. The runbook leads with the case it cannot catch: a scheduled job that stopped raises nothing, so only the freshness query finds it.
 - [ ] **OPS-05** Postgres backups, restore **tested** at least once.
       Note: an untested backup is not a backup.
 - [ ] **OPS-06** Secrets management in prod. Etsy refresh-token rotation handled.
       Note:
-- [ ] **OPS-07** Structured logging with a correlation ID traced across the pipeline.
-      Note:
-- [ ] **OPS-08** Runbook: what to do when a source breaks, publish fails, or the budget cap trips.
-      Note:
+- [x] **OPS-07** Structured logging with a correlation ID traced across the pipeline.
+      Note: JSON lines outside local dev, plain text locally. One id per task, set at the top of `collect` and `rank`; nested blocks keep the outer id so a task calling another does not lose the thread.
+      **Secrets are redacted by key name, including nested ones.** The Etsy refresh token grants publish rights for 90 days, and a leak of it would look like nothing was wrong.
+- [x] **OPS-08** Runbook: what to do when a source breaks, publish fails, or the budget cap trips.
+      Note: [.claude/RUNBOOK.md](RUNBOOK.md). Leads with the failure that produces no error — a scheduled job that stopped — because that is the likeliest serious one for a solo operator and no error tracker catches it. Also covers Etsy removals (treat as a batch problem, not a single listing), budget pauses, publish retries, and the local-dev papercuts.
 
 **M6 exit:** one week unattended, no cost surprise, no silent failure.
 
