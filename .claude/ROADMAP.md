@@ -255,8 +255,12 @@ Known minor: `starlette.testclient` warns that httpx support is deprecated in fa
 - [x] **ENG-19** `GoogleTrendsAdapter` (`pytrends`).
       Note: works against the live API. Three real behaviours handled: the final row is `isPartial` (an incomplete period that reads as a collapse and would drag momentum down on exactly the rising keywords we hunt); **one term per request** (see below); and a 2s inter-request delay because Google 429s readily. Signal ids are `uuid5(platform, keyword, observation-day)` so redelivery cannot duplicate a row.
       **Bug found in a live run:** Google rescales its 0-100 index *within a batch*, so `moon phase print` scored **1** beside `cat sticker` — not low interest, just a shared request. Fetching one term per request makes the index relative to that keyword's own history (`8` for the same keyword — an 8× distortion). **Google Trends is the momentum source; Etsy supplies absolute demand.** Costs one request per seed; the delay default is a guess — tune it against real seed-list sizes.
-- [ ] **ENG-20** `TikTokCreativeCenterAdapter` — best-effort, explicitly non-critical.
-      Note: **not started.** Internal JSON endpoints, not a sanctioned API (R5). Isolate it; let it fail loudly and harmlessly.
+- [-] **ENG-20** `TikTokCreativeCenterAdapter` — best-effort, explicitly non-critical.
+      Note: **dropped — tested and not obtainable without an account.** Measured 2026-08-19 against the live endpoints:
+      `creative_radar_api/v1/popular_trend/hashtag/list` returns HTTP **200** with body `{"code":40101,"msg":"no permission"}`. The 200 is misleading; the payload is a refusal.
+      Also evaluated **Pinterest Trends** at the same time (CONTEXT.md §5 calls it a scraping-tolerant fallback): `trends.pinterest.com` returns a React shell whose embedded `__PWS_DATA__` contains **no trend data at all** unauthenticated — the only matching keys are experiment flags. Data arrives via authenticated XHR, and the page ships CAPTCHA handling.
+      Evaluated **Scrapling** (BSD-3, free, TLS impersonation + adaptive selectors) as the tool for both. The tool is good; it does not help. Neither target is gated on parsing or fingerprinting — both are gated on **being logged in**. That means an account to risk on each platform, session and CAPTCHA handling, and breakage on every deploy they make. Same trap as scraping Amazon, at a lower sticker price.
+      **Reopen only if** TikTok or Pinterest expose a real public API, or if the momentum signal becomes worth an account. Note it would still only add *momentum*, which Google Trends already supplies — the gap is absolute demand, and that is Etsy and Keepa.
 - [x] **ENG-21** Persist raw payloads to JSONB alongside the parsed aggregate.
       Note: full series stored per signal (92 points on a 3-month daily window). Repository upserts with `ON CONFLICT DO NOTHING`.
 - [x] **ENG-22** Celery beat schedule for periodic collection.
