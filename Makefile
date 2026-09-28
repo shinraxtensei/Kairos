@@ -1,7 +1,10 @@
 # Run from anywhere in the repo. Every target cds into backend/ itself, because
 # forgetting to do that produces "no configuration file provided: not found"
 # from docker compose and ModuleNotFoundError from bare python.
-BACKEND := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))backend
+ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BACKEND := $(ROOT)backend
+FRONTEND := $(ROOT)frontend
+UI := cd $(FRONTEND) &&
 RUN := cd $(BACKEND) &&
 
 # Host ports, kept off the defaults so Kairos can run beside another project.
@@ -23,14 +26,23 @@ APP_ENV := KAIROS_DATABASE_URL=$(DEV_DB) KAIROS_REDIS_URL=redis://localhost:$(RE
 # Override when 8000 is taken: make dev PORT=8001
 PORT ?= 8000
 
-.PHONY: help setup up down logs migrate migration seed dev stop worker beat check test collect rank fmt
+.PHONY: help setup up down logs migrate migration seed dev stop worker beat check test collect rank fmt ui ui-dev ui-install
 
 help:  ## Show this help
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-setup: up migrate  ## First run: deps, services, schema
+setup: ui-install up migrate ui  ## First run: deps, services, schema, dashboard
 	@$(RUN) uv sync --all-groups
 	@echo "Ready. 'make seed' for demo data, 'make dev' to serve."
+
+ui-install:  ## Install dashboard dependencies
+	@$(UI) npm install --silent
+
+ui:  ## Build the dashboard into the package FastAPI serves
+	@$(UI) npm run build
+
+ui-dev:  ## Vite dev server with hot reload on :5173 (proxies /api to :$(PORT))
+	@$(UI) npm run dev
 
 up:  ## Start Postgres + Redis
 	@$(RUN) $(PORTS_ENV) docker compose up -d

@@ -1,4 +1,4 @@
-"""Budget dashboard, driven through HTTP against real Postgres.
+"""Budget API, driven through HTTP against real Postgres.
 
 Lives in the shared tests/ root rather than inside Budgeting: it imports
 `kairos.app`, which is the composition root and therefore reaches every context.
@@ -57,29 +57,28 @@ def _record(session: Session) -> RecordSpend:
     return RecordSpend(SqlAlchemySpendLedgerRepository(session, LIMIT))
 
 
-def test_given_no_spend_when_opened_then_renders(session: Session) -> None:
-    response = client.get("/budget")
+def test_given_no_spend_when_read_then_no_categories(session: Session) -> None:
+    response = client.get("/api/budget")
     assert response.status_code == 200
-    assert "No spend recorded yet" in response.text
+    assert response.json()["by_category"] == []
 
 
-def test_given_spend_when_opened_then_shows_categories(session: Session) -> None:
+def test_given_spend_when_read_then_categories_carry_their_metered_flag(session: Session) -> None:
     record = _record(session)
     record(CostCategory.IMAGE_GENERATION, usd("0.40"))
     record(CostCategory.LISTING_FEE, usd("0.20"))
 
-    body = client.get("/budget").text
+    rows = {r["label"]: r for r in client.get("/api/budget").json()["by_category"]}
 
-    assert "Image generation" in body
-    assert "Etsy listing fee" in body
-    # The selling fee is shown but explicitly marked unmetered, so the dashboard
+    assert rows["Image generation"]["metered"] is True
+    # Carried as a flag rather than left for the client to infer, so a dashboard
     # cannot be misread as "we are closer to the cap than we are".
-    assert "no — a selling fee" in body
+    assert rows["Etsy listing fee"]["metered"] is False
 
 
-def test_given_a_breached_cap_when_opened_then_shows_paused(session: Session) -> None:
+def test_given_a_breached_cap_when_read_then_reports_paused(session: Session) -> None:
     _record(session)(CostCategory.IMAGE_GENERATION, usd("2.00"))
-    assert "Pipeline paused" in client.get("/budget").text
+    assert client.get("/api/budget").json()["paused"] is True
 
 
 def test_given_the_json_endpoint_when_called_then_reports_both_meters(

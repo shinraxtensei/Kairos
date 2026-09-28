@@ -5,9 +5,9 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import Depends, FastAPI, Form, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -32,9 +32,11 @@ configure_logging()
 
 app = FastAPI(title="Kairos", version="0.1.0")
 
-# DEC-01: server-rendered. The review queue and leaderboard are keyboard-driven
-# lists; React would buy nothing and cost a second runtime for a solo operator.
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# DEC-01 revised: the dashboard is a React SPA built by Vite into this
+# directory. Production still runs ONE process — FastAPI serves the bundle, so
+# there is no second runtime to deploy, monitor or keep in sync. The build step
+# lives in CI and in `make ui`.
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @app.get("/health")
@@ -52,23 +54,6 @@ def health_deep() -> dict[str, str]:
     except Exception as exc:
         database = f"unreachable: {type(exc).__name__}"
     return {"status": "ok" if database == "ok" else "degraded", "database": database}
-
-
-@app.get("/niches", response_class=HTMLResponse)
-def leaderboard(
-    request: Request,
-    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
-) -> HTMLResponse:
-    """ENG-23 — the Niche Leaderboard read model."""
-    niches = SqlAlchemyNicheRepository(session).leaderboard(limit=50)
-    return templates.TemplateResponse(
-        request=request,
-        name="leaderboard.html",
-        context={
-            "niches": niches,
-            "thin_count": sum(1 for niche in niches if niche.needs_corroboration),
-        },
-    )
 
 
 # The review queue is the surface Hamid uses daily, and review speed is the
@@ -110,34 +95,6 @@ def _pending_assets(session: Session) -> list[GeneratedAsset]:
         for asset in SqlAlchemyGeneratedAssetRepository(session).awaiting_review()
         if (existing := reviews.for_asset(asset.asset_id)) is None or not existing.is_decided
     ]
-
-
-@app.get("/review", response_class=HTMLResponse)
-def review_queue(
-    request: Request,
-    i: int = 0,
-    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
-) -> HTMLResponse:
-    """ENG-30 — the Review Queue. One asset per screen, keyboard-driven."""
-    pending = _pending_assets(session)
-    index = max(0, min(i, len(pending) - 1)) if pending else 0
-    asset = pending[index] if pending else None
-    return templates.TemplateResponse(
-        request=request,
-        name="review.html",
-        context={
-            "asset": asset,
-            "position": index + 1,
-            "total": len(pending),
-            "next_index": min(index + 1, max(len(pending) - 1, 0)),
-            "prev_index": max(index - 1, 0),
-            # Never pre-ticked. A pre-ticked box is a box nobody reads (CMP-05).
-            "checks": [
-                {"value": check.value, "label": label} for check, label in IP_CHECK_LABELS.items()
-            ],
-            "reasons": [(reason.value, label) for reason, label in REJECTION_LABELS.items()],
-        },
-    )
 
 
 @app.post("/review/{asset_id}/approve")
@@ -311,18 +268,41 @@ def _budget_view(session: Session) -> dict[str, object]:
     }
 
 
-@app.get("/budget", response_class=HTMLResponse)
-def budget_dashboard(
-    request: Request,
-    session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
-) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request=request, name="budget.html", context=_budget_view(session)
-    )
-
-
 @app.get("/api/budget")
 def api_budget(
     session: Session = Depends(get_session),  # noqa: B008 - FastAPI's DI idiom
 ) -> dict[str, object]:
     return _budget_view(session)
+
+
+# ---------------------------------------------------------------------------
+# The dashboard bundle.
+#
+# Mounted last so every API route above wins. The catch-all returns index.html
+# for unknown paths because the SPA owns client-side routing — /review and
+# /niches are its routes, not the server's — while anything under /api keeps
+# returning a real 404 instead of a page that would parse as JSON garbage.
+# ---------------------------------------------------------------------------
+
+if (STATIC_DIR / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def spa(full_path: str) -> FileResponse:
+    if full_path.startswith(("api/", "docs", "openapi.json", "redoc")):
+        raise HTTPException(status_code=404, detail="not found")
+
+    candidate = (STATIC_DIR / full_path).resolve()
+    # Only serve files that really sit inside the bundle: a crafted path must
+    # not be able to read its way out of it.
+    if full_path and candidate.is_file() and candidate.is_relative_to(STATIC_DIR.resolve()):
+        return FileResponse(candidate)
+
+    index = STATIC_DIR / "index.html"
+    if not index.is_file():
+        raise HTTPException(
+            status_code=503,
+            detail="dashboard bundle missing — run `make ui` to build it",
+        )
+    return FileResponse(index)

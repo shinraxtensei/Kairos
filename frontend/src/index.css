@@ -1,0 +1,229 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   KAIROS — operator console
+   ---------------------------------------------------------------------------
+   Vocabulary borrowed from the trading terminal: hairline rules instead of
+   shadows, monospace numerics, amber as the signal colour, square corners.
+   Nothing floats. Every panel is a bounded instrument with a 1px edge, and the
+   grid is foreground rather than something the layout hides.
+
+   Amber is both the accent and the warning state on purpose — that is the
+   terminal convention, where amber means "look here" and green/red are
+   reserved for movement. Radius is 0 everywhere except the nav pill and
+   status chips, which are fully round; there is no in-between.
+   =========================================================================== */
+
+@theme {
+  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-brand: "Martian Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+
+  --ground: #08080a;
+  --panel: #0d0d10;
+  --panel-raised: #131317;
+  --inset: #050506;
+
+  --line: #1c1c22;
+  --line-bright: #2b2b34;
+
+  --text: #e9e9ec;
+  --text-muted: #8c8c99;
+  --text-faint: #565663;
+
+  /* Signal. Amber carries both "interactive" and "attention", as a terminal
+     does; green and red are reserved for direction of movement. */
+  --signal: #ffb020;
+  --signal-dim: #6b4a0f;
+  --signal-wash: #1c1408;
+  --on-signal: #100a00;
+
+  --up: #3dd68c;
+  --up-wash: #0b1f16;
+  --down: #ff5f56;
+  --down-wash: #240f0e;
+
+  --grid: color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --ground: #f4f4f1;
+  --panel: #ffffff;
+  --panel-raised: #fbfbf9;
+  --inset: #ecece8;
+
+  --line: #dcdcd6;
+  --line-bright: #c2c2b9;
+
+  --text: #16161a;
+  --text-muted: #5e5e68;
+  --text-faint: #8d8d97;
+
+  --signal: #9a6200;
+  --signal-dim: #d9b877;
+  --signal-wash: #fbf2e0;
+  --on-signal: #fffdf7;
+
+  --up: #10693f;
+  --up-wash: #e3f4ea;
+  --down: #b3261e;
+  --down-wash: #fae7e5;
+
+  --grid: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-inset: var(--inset);
+  --color-line: var(--line);
+  --color-line-bright: var(--line-bright);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-signal: var(--signal);
+  --color-signal-dim: var(--signal-dim);
+  --color-signal-wash: var(--signal-wash);
+  --color-on-signal: var(--on-signal);
+  --color-up: var(--up);
+  --color-up-wash: var(--up-wash);
+  --color-down: var(--down);
+  --color-down-wash: var(--down-wash);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* The grid is foreground, not decoration: it reads as engineering paper and
+     makes the panels sit ON something instead of floating. */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: -1px -1px;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* Every figure lines up. Non-negotiable in an instrument. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Machine labels: small, wide, mono. They name a field rather than speak. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.rule-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.rule-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--signal);
+  color: var(--on-signal);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.pulse {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+.sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 25%;
+  background: linear-gradient(90deg, transparent, var(--signal-wash), transparent);
+  animation: sweep 2.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--inset);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-bright);
+  border: 4px solid var(--inset);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
