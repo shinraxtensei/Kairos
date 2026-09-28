@@ -493,6 +493,7 @@ Open questions from CONTEXT.md §10 plus ones surfaced in review. Each needs a d
 | **DEC-04** | First niche | M3 | Pick by hand to *learn*; let the M2 pipeline pick the one you *commit* to. | `[ ]` |
 | **DEC-05** | Seller entity: individual vs business | M0 | Depends on jurisdiction + tax. Decide before BIZ-03 — changing it later is painful. | `[ ]` |
 | **DEC-06** | Keep or drop Everbee/eRank after month 1 | M6 | Manual CSV ritual (R7). Keep only if it demonstrably changed a ranking decision. | `[ ]` |
+| **DEC-07** | Use TypeSafe's Jev for curation triage | M4, after DEC-02 | **Not for ranking** — ranking is a data problem, not a judgment one, and a better scorer over momentum-only inputs gives confidently-wrong results instead of visibly thin ones. It would also cost `ScoreBreakdown`'s tunability, and §4.2/ENG-51 require the weighted formula to demonstrably fail first, which cannot be shown with zero sales. Cost is not an argument either: at ~$0.0004/decision it is under 1% of one generated image, and ranking runs daily over ~50 keywords. **Revisit for curation triage**, where review speed is the real ceiling (RSK-07): a `Score` question could pre-sort the queue, and the six `IpCheck` items are literally Noul questions. Constraint if adopted: it may only ever **raise** suspicion, never pre-tick a check (CMP-05) — "never hallucinates" means schema-valid output, not correct judgment, and a confidently-wrong "no logo here" is the failure that costs the shop. Waitlisted early access as of 2026-09-28, 13 days old. | `[ ]` |
 
 ---
 
