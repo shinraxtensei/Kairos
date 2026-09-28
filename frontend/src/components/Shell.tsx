@@ -1,148 +1,147 @@
 import { useEffect, useState } from "react"
 import { NavLink, Outlet } from "react-router-dom"
-import { Banknote, ClipboardCheck, Menu, Moon, Sun, TrendingUp, X } from "lucide-react"
+import { Contrast } from "lucide-react"
 import { cn } from "@/lib/cn"
+import { Dot } from "@/components/ui/primitives"
 
 const NAV = [
-  { to: "/review", label: "Review queue", icon: ClipboardCheck, hint: "Approve or reject designs" },
-  { to: "/niches", label: "Niches", icon: TrendingUp, hint: "Ranked opportunities" },
-  { to: "/budget", label: "Budget", icon: Banknote, hint: "Spend against caps" },
+  { to: "/review", label: "Review" },
+  { to: "/niches", label: "Niches" },
+  { to: "/budget", label: "Budget" },
 ]
 
-type Theme = "light" | "dark" | "system"
+type Theme = "dark" | "light"
 
 function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      return (localStorage.getItem("kairos-theme") as Theme) ?? "system"
+      return (localStorage.getItem("kairos-theme") as Theme) ?? "dark"
     } catch {
-      return "system"
+      return "dark"
     }
   })
-
   useEffect(() => {
-    const root = document.documentElement
-    if (theme === "system") root.removeAttribute("data-theme")
-    else root.setAttribute("data-theme", theme)
+    document.documentElement.setAttribute("data-theme", theme)
     try {
       localStorage.setItem("kairos-theme", theme)
     } catch {
-      /* private window — the page still renders correctly without it */
+      /* private window — the page renders correctly without it */
     }
   }, [theme])
-
   return { theme, setTheme }
 }
 
-function NavItems({ onNavigate }: { onNavigate?: () => void }) {
+/** UTC, because every timestamp in the system is UTC and a console should not
+ *  make you convert in your head. */
+function Clock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
   return (
-    <nav className="flex flex-col gap-0.5">
-      {NAV.map(({ to, label, icon: Icon, hint }) => (
-        <NavLink
-          key={to}
-          to={to}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "group flex items-start gap-3 rounded-[var(--radius-control)] px-3 py-2.5 transition-colors",
-              isActive
-                ? "bg-accent-soft text-accent"
-                : "text-text-muted hover:bg-surface-sunken hover:text-text",
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              <Icon className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{label}</span>
-                <span
-                  className={cn(
-                    "block text-xs",
-                    isActive ? "text-accent/70" : "text-text-faint",
-                  )}
-                >
-                  {hint}
-                </span>
-              </span>
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
+    <span className="num text-[0.6875rem] text-text-faint">
+      {now.toISOString().slice(11, 19)}
+      <span className="ml-1 text-text-faint/60">UTC</span>
+    </span>
   )
 }
 
-function ThemeToggle({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
-  const next: Theme = theme === "dark" ? "light" : "dark"
+function Health() {
+  const [ok, setOk] = useState<boolean | null>(null)
+  useEffect(() => {
+    let alive = true
+    const ping = () =>
+      fetch("/health")
+        .then((r) => alive && setOk(r.ok))
+        .catch(() => alive && setOk(false))
+    ping()
+    const id = setInterval(ping, 30_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [])
   return (
-    <button
-      onClick={() => setTheme(next)}
-      aria-label={`Switch to ${next} theme`}
-      className="flex items-center gap-2 rounded-[var(--radius-control)] border border-line px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-sunken hover:text-text"
-    >
-      {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-      <span className="capitalize">{theme}</span>
-    </button>
-  )
-}
-
-function Wordmark() {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span className="font-display text-lg leading-none font-semibold tracking-tight">
-        Kairos
+    <span className="flex items-center gap-1.5">
+      <Dot tone={ok === false ? "down" : ok ? "up" : "neutral"} pulse={ok === null} />
+      <span className="num text-[0.6875rem] text-text-faint">
+        {ok === false ? "OFFLINE" : ok ? "LIVE" : "…"}
       </span>
-      {/* The name is the thesis: the opportune moment, not linear time. */}
-      <span className="text-[0.6875rem] text-text-faint">the opportune moment</span>
-    </div>
+    </span>
   )
 }
 
 export function Shell() {
   const { theme, setTheme } = useTheme()
-  const [open, setOpen] = useState(false)
 
   return (
-    <div className="min-h-full lg:grid lg:grid-cols-[17rem_1fr]">
-      {/* Mobile bar */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-ground/90 px-4 py-3 backdrop-blur lg:hidden">
-        <Wordmark />
-        <div className="flex items-center gap-2">
-          <ThemeToggle theme={theme} setTheme={setTheme} />
-          <button
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            className="rounded-[var(--radius-control)] border border-line p-1.5 text-text-muted"
-          >
-            {open ? <X className="size-4" /> : <Menu className="size-4" />}
-          </button>
+    <div className="flex min-h-full flex-col">
+      <header className="sticky top-0 z-40 border-b border-line bg-ground/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-6">
+          {/* Identity left, nav centred, instruments right — the console
+              arrangement: who you are, where you are, what the machine is doing. */}
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="font-brand text-[0.8125rem] font-bold tracking-[-0.04em]">
+              KAIROS
+            </span>
+            <span className="hidden text-[0.6875rem] text-text-faint sm:inline">
+              /&nbsp;the opportune moment
+            </span>
+          </div>
+
+          {/* Below sm the pill takes a row of its own: squeezed onto the brand
+              row it collided with the wordmark. */}
+          <nav className="order-last flex shrink-0 basis-full items-center justify-center gap-0.5 rounded-full border border-line bg-panel p-1 sm:order-none sm:basis-auto">
+            {NAV.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    "rounded-full px-3.5 py-1.5 font-mono text-[0.6875rem] tracking-widest uppercase transition-colors sm:px-5",
+                    isActive
+                      ? "bg-signal text-on-signal font-semibold"
+                      : "text-text-muted hover:text-text",
+                  )
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <span className="hidden items-center gap-3 md:flex">
+              <Health />
+              <span className="h-3 w-px bg-line" />
+              <Clock />
+            </span>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              className="border border-line p-1.5 text-text-faint transition-colors hover:border-signal hover:text-signal"
+            >
+              <Contrast className="size-3.5" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {open ? (
-        <div className="border-b border-line bg-surface px-4 py-3 lg:hidden">
-          <NavItems onNavigate={() => setOpen(false)} />
-        </div>
-      ) : null}
-
-      {/* Desktop rail */}
-      <aside className="sticky top-0 hidden h-screen flex-col gap-6 border-r border-line bg-surface px-4 py-5 lg:flex">
-        <Wordmark />
-        <NavItems />
-        <div className="mt-auto flex flex-col gap-3">
-          <ThemeToggle theme={theme} setTheme={setTheme} />
-          <p className="text-[0.6875rem] leading-relaxed text-text-faint">
-            Every design passes a human before it can be listed. That gate is
-            permanent.
-          </p>
-        </div>
-      </aside>
-
-      <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:py-8">
         <Outlet />
       </main>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
+          <span className="label">
+            Every design passes a human before it can be listed
+          </span>
+          <span className="num text-[0.625rem] text-text-faint">
+            KAIROS · ETSY PIPELINE · v0.1
+          </span>
+        </div>
+      </footer>
     </div>
   )
 }
