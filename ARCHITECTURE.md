@@ -11,7 +11,7 @@ Three docs, three questions:
 | [.claude/ROADMAP.md](.claude/ROADMAP.md) | **What** to build, in what order, what's done |
 | **This file** | **How** the code is organised |
 
-~5,000 lines of code, ~3,400 lines of tests, 8 bounded contexts, 313 tests.
+~5,300 lines of code, ~3,700 lines of tests, 8 bounded contexts, 325 tests.
 
 ---
 
@@ -404,8 +404,6 @@ Roughly in order of how much they'll teach you:
 - **No `ImageGenerator` adapter.** DEC-02 blocks it; the port and everything
   above it are ready.
 - **No `FulfillmentChannel` adapter.** Etsy approval blocks it.
-- **Three tables have no repository yet** — `style_guides`, `listing_drafts`,
-  `listings` have models and migrations but no mapping code.
 - **`alert()` only logs CRITICAL.** There's no pager. That's honest rather than
   pretending; route it somewhere real before running unattended.
 - **Budget caps are placeholders** ($2/day, $40/month) until DEC-03.

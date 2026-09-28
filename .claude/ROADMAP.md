@@ -386,8 +386,8 @@ This is not busywork and it is not optional. Automating a loop you have never ru
       `force=True` **still refuses** rather than republishing: a force that creates a second paid listing is a footgun with a friendly name. A *failed* publish stays retryable — that is what distinguishes it from a successful one.
 - [ ] **ENG-35** Publish as **draft** first, with a manual "go live" action for the first N listings.
       Note: keeps a human between the pipeline and the public shop until it has earned trust. Remove the training wheel deliberately, not by forgetting.
-- [ ] **ENG-36** Live Listings read model.
-      Note:
+- [~] **ENG-36** Live Listings read model.
+      Note: `SqlAlchemyListingRepository.live()` returns published listings newest-first. **No page renders it yet** — that waits on there being real published listings, which waits on Etsy.
 - [ ] **CMP-07** `compliance-guardian` review of the entire publish path.
       Note: mandatory gate before this milestone closes.
 - [ ] **TST-05** `FulfillmentChannel` contract suite (proves Phase 2 POD will slot in).
