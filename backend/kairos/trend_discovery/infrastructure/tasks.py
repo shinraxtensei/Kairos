@@ -12,6 +12,7 @@ from typing import Any
 from kairos.celery_app import celery_app
 from kairos.config import get_settings
 from kairos.db import SessionLocal
+from kairos.observability import alert, correlated
 from kairos.trend_discovery.application.fetch_trend_signals import FetchTrendSignals
 from kairos.trend_discovery.domain.ports import TrendSource
 from kairos.trend_discovery.domain.value_objects import Keyword
@@ -59,15 +60,19 @@ def build_sources() -> list[TrendSource]:
 @celery_app.task(name="kairos.trend_discovery.collect")
 def collect_trend_signals(seeds: list[str] | None = None) -> dict[str, Any]:
     keywords = [Keyword(text) for text in (seeds or DEFAULT_SEEDS)]
-    with SessionLocal() as session:
+    with correlated("collect"), SessionLocal() as session:
         result = FetchTrendSignals(build_sources(), SqlAlchemyTrendSignalRepository(session))(
             keywords
         )
 
     if result.all_sources_failed:
         # Not raised: retrying immediately would hammer a source that is already
-        # failing. OPS-04 alerting picks this up from the log.
-        logger.error("trend collection produced nothing — every source failed")
+        # failing. Alerted rather than logged, because a pipeline that quietly
+        # collects nothing looks identical to one that is simply idle (OPS-04).
+        alert(
+            "trend collection produced nothing — every source failed",
+            failures=[f"{f.platform}: {f.reason}" for f in result.failures],
+        )
 
     return {
         "collected": len(result.collected),

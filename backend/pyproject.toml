@@ -67,6 +67,11 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ARG", "DTZ"]
 # whether or not a given revision uses them.
 "migrations/versions/**" = ["F401", "UP", "I001", "W291", "E501"]
 
+[tool.ruff.format]
+# Alembic writes these from its own template. Reformatting them adds a diff to
+# every migration for no benefit, and the file is generated, not maintained.
+exclude = ["migrations/versions/*"]
+
 # ---------------------------------------------------------------------------
 # Types — strict in domain/, where the business rules live and there is no I/O
 # to make strictness painful.
@@ -119,6 +124,7 @@ containers = [
     "kairos.listing_authoring",
     "kairos.budgeting",
     "kairos.creative_direction",
+    "kairos.fulfillment",
 ]
 
 [[tool.importlinter.contracts]]
@@ -132,6 +138,7 @@ source_modules = [
     "kairos.listing_authoring.domain",
     "kairos.budgeting.domain",
     "kairos.creative_direction.domain",
+    "kairos.fulfillment.domain",
 ]
 forbidden_modules = [
     "sqlalchemy",
@@ -164,6 +171,7 @@ modules = [
     "kairos.listing_authoring",
     "kairos.budgeting",
     "kairos.creative_direction",
+    "kairos.fulfillment",
 ]
 # Every cross-context edge is listed here, one line each, rather than the
 # contract being weakened. Adding an edge is a review decision, and anything

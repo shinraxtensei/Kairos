@@ -26,8 +26,10 @@ class Settings(BaseSettings):
     # leaves $8.68 for generation. Off until revenue justifies it.
     keepa_api_key: str = ""
     keepa_enabled: bool = False
-    database_url: str = "postgresql+psycopg://kairos:kairos@localhost:5432/kairos"
-    redis_url: str = "redis://localhost:6379/0"
+    # Ports default off 5432/6379 so Kairos coexists with whatever else is on
+    # this machine; docker-compose maps to the same ones. Override via .env.
+    database_url: str = "postgresql+psycopg://kairos:kairos@localhost:5433/kairos"
+    redis_url: str = "redis://localhost:6380/0"
 
 
 @lru_cache

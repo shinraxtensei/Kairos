@@ -9,11 +9,12 @@ from kairos.db import SessionLocal
 from kairos.niche_ranking.application.rank_niches import RankNiches
 from kairos.niche_ranking.infrastructure.repository import SqlAlchemyNicheRepository
 from kairos.niche_ranking.infrastructure.trend_signal_reader import TrendDiscoverySignalReader
+from kairos.observability import correlated
 
 
 @celery_app.task(name="kairos.niche_ranking.rank")
 def rank_niches() -> dict[str, Any]:
-    with SessionLocal() as session:
+    with correlated("rank"), SessionLocal() as session:
         result = RankNiches(
             TrendDiscoverySignalReader(session), SqlAlchemyNicheRepository(session)
         )()
