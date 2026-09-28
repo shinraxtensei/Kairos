@@ -1,12 +1,16 @@
 """Review queue end to end, through the HTTP layer against real Postgres.
 
+Asserts the JSON contract the dashboard consumes. The pages themselves are a
+React bundle now, so what the server owes is the payload — which assets are
+queued, which IP checks exist, and that a decision is refused unless the domain
+is satisfied.
+
 Lives in the shared tests/ root: it drives Content Generation and Curation
 together, and neither context may import the other.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterator
 from decimal import Decimal
 
@@ -75,17 +79,18 @@ def _packaged_asset(session: Session, keyword: str = "moon phase print") -> Gene
 
 
 def test_given_no_assets_when_queue_opened_then_shows_empty_state(session: Session) -> None:
-    response = client.get("/review")
+    response = client.get("/api/review/queue")
     assert response.status_code == 200
-    assert "Nothing awaiting review" in response.text
+    assert response.json()["total"] == 0
 
 
 def test_given_a_packaged_asset_when_queue_opened_then_it_is_shown(session: Session) -> None:
     asset = _packaged_asset(session)
-    response = client.get("/review")
+    response = client.get("/api/review/queue")
     assert response.status_code == 200
-    assert str(asset.asset_id) in response.text
-    assert "moon phase print" in response.text
+    payload = response.json()
+    assert [a["asset_id"] for a in payload["assets"]] == [str(asset.asset_id)]
+    assert payload["assets"][0]["niche_keyword"] == "moon phase print"
 
 
 def test_given_an_unpackaged_asset_when_queue_opened_then_it_is_not_shown(
@@ -94,14 +99,14 @@ def test_given_an_unpackaged_asset_when_queue_opened_then_it_is_not_shown(
     """Curation only sees finished assets — a half-processed one is not a design."""
     asset = GeneratedAsset.generated(niche_keyword="wip", variant=AssetVariant(0))
     SqlAlchemyGeneratedAssetRepository(session).save(asset)
-    assert "Nothing awaiting review" in client.get("/review").text
+    assert client.get("/api/review/queue").json()["total"] == 0
 
 
 def test_given_a_failed_asset_when_queue_opened_then_it_is_not_shown(session: Session) -> None:
     asset = GeneratedAsset.generated(niche_keyword="broken", variant=AssetVariant(0))
     asset.fail(GenerationFailure.CONTENT_FILTER)
     SqlAlchemyGeneratedAssetRepository(session).save(asset)
-    assert "Nothing awaiting review" in client.get("/review").text
+    assert client.get("/api/review/queue").json()["total"] == 0
 
 
 def test_given_the_queue_page_then_no_check_is_pre_ticked(session: Session) -> None:
@@ -111,14 +116,14 @@ def test_given_the_queue_page_then_no_check_is_pre_ticked(session: Session) -> N
     this is the difference between a real screening and theatre.
     """
     _packaged_asset(session)
-    body = client.get("/review").text
+    payload = client.get("/api/review/queue").json()
 
-    inputs = re.findall(r"<input[^>]*class=\"ip-check\"[^>]*>", body)
-    assert len(inputs) == len(IpCheck)
-    # Every box unticked. Matched against the tags themselves — a plain
-    # `"checked" not in body` also matches `b.checked` in the page's script and
-    # would pass whatever the markup did.
-    assert not [tag for tag in inputs if "checked" in tag]
+    # The server sends the checklist and no selection state, so a client has
+    # nothing to pre-tick from. Sending the list rather than letting the client
+    # define it also stops a frontend shipping a shorter screening than the
+    # domain requires.
+    assert {c["value"] for c in payload["ip_checks"]} == {c.value for c in IpCheck}
+    assert all(set(c) == {"value", "label"} for c in payload["ip_checks"])
 
 
 def test_given_all_checks_confirmed_when_approved_then_asset_leaves_the_queue(
@@ -134,7 +139,7 @@ def test_given_all_checks_confirmed_when_approved_then_asset_leaves_the_queue(
 
     assert response.status_code == 303
     assert SqlAlchemyReviewDecisionRepository(session).approval_exists_for(asset.asset_id)
-    assert "Nothing awaiting review" in client.get("/review").text
+    assert client.get("/api/review/queue").json()["total"] == 0
 
 
 def test_given_a_tampered_form_when_approved_then_it_is_refused(session: Session) -> None:
@@ -183,7 +188,7 @@ def test_given_a_rejection_when_submitted_then_asset_leaves_without_approval(
     decision = repository.for_asset(asset.asset_id)
     assert decision is not None and decision.decision is not None
     assert not decision.decision.approved
-    assert "Nothing awaiting review" in client.get("/review").text
+    assert client.get("/api/review/queue").json()["total"] == 0
 
 
 def test_given_several_assets_when_queued_then_oldest_first_and_counted(
@@ -191,22 +196,23 @@ def test_given_several_assets_when_queued_then_oldest_first_and_counted(
 ) -> None:
     for i in range(3):
         _packaged_asset(session, keyword=f"niche {i}")
-    body = client.get("/review").text
-    assert "1 of 3 pending" in body
-    assert "niche 0" in body
+    payload = client.get("/api/review/queue").json()
+    assert payload["total"] == 3
+    assert payload["assets"][0]["niche_keyword"] == "niche 0"
 
 
-def test_given_an_index_when_navigating_then_a_different_asset_is_shown(
+def test_given_several_assets_when_queued_then_the_client_can_page_through_them(
     session: Session,
 ) -> None:
     for i in range(3):
         _packaged_asset(session, keyword=f"niche {i}")
-    assert "niche 1" in client.get("/review?i=1").text
+    payload = client.get("/api/review/queue").json()
+    assert payload["assets"][1]["niche_keyword"] == "niche 1"
 
 
-def test_given_an_out_of_range_index_when_navigating_then_it_clamps(
+def test_given_an_unknown_path_when_requested_then_the_spa_shell_is_served(
     session: Session,
 ) -> None:
-    _packaged_asset(session)
-    assert client.get("/review?i=99").status_code == 200
-    assert client.get("/review?i=-5").status_code == 200
+    """Client-side routes are the SPA's, not the server's — but /api must still
+    404 rather than return a page that would parse as JSON garbage."""
+    assert client.get("/api/does-not-exist").status_code == 404

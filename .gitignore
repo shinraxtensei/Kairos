@@ -219,3 +219,8 @@ __marimo__/
 
 # claude — track agents/rules, ignore local machine state
 .claude/settings.local.json
+# Built dashboard — produced by `make ui`, never committed. A build artifact in
+# git goes stale silently and shows someone an old UI over new data.
+backend/kairos/static/
+node_modules/
+frontend/dist/

@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Kairos design system.
+
+   Grounded in what the app is: an operator's console for catching a niche at
+   the right moment. It is scanned and operated at speed, not read, so the
+   craft is information design — summary before detail, state encoded in form
+   as well as in numbers, and digits that line up.
+
+   Neutrals are warm-biased rather than the blue-grey every dashboard inherits;
+   the accent is a cool teal so the two read as a deliberate pair. Semantic
+   colour (ok / warn / bad) is a separate scale from the accent, so "this is
+   interactive" never looks like "this is fine".
+--------------------------------------------------------------------------- */
+
+@theme {
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-card: 0.625rem;
+  --radius-control: 0.4rem;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Warm paper, not pure white — chosen, not inherited. */
+  --ground: #faf8f4;
+  --surface: #ffffff;
+  --surface-sunken: #f2efe9;
+  --line: #e4dfd5;
+  --line-strong: #d2ccbe;
+
+  --text: #1b1915;
+  --text-muted: #6e685d;
+  --text-faint: #97907f;
+
+  /* Interactive / brand. Never used to mean "good". */
+  --accent: #10837f;
+  --accent-hover: #0c6a67;
+  --accent-soft: #d8efed;
+  --accent-contrast: #ffffff;
+
+  /* Semantic, deliberately a separate scale from the accent. */
+  --ok: #2f7d4f;
+  --ok-soft: #dcf0e3;
+  --warn: #9a6512;
+  --warn-soft: #f8ecd4;
+  --bad: #a83240;
+  --bad-soft: #fbe2e4;
+
+  --shadow-card: 0 1px 2px rgb(27 25 21 / 0.05), 0 1px 3px rgb(27 25 21 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --ground: #14130f;
+    --surface: #1c1a16;
+    --surface-sunken: #100f0c;
+    --line: #2e2b25;
+    --line-strong: #413d34;
+
+    --text: #f2efe7;
+    --text-muted: #a49d90;
+    --text-faint: #7a7368;
+
+    --accent: #4fd1c5;
+    --accent-hover: #6fe0d6;
+    --accent-soft: #14312f;
+    --accent-contrast: #0b1a19;
+
+    --ok: #5cba7d;
+    --ok-soft: #16301f;
+    --warn: #e0a33e;
+    --warn-soft: #332614;
+    --bad: #e05a66;
+    --bad-soft: #341a1d;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ground: #14130f;
+  --surface: #1c1a16;
+  --surface-sunken: #100f0c;
+  --line: #2e2b25;
+  --line-strong: #413d34;
+
+  --text: #f2efe7;
+  --text-muted: #a49d90;
+  --text-faint: #7a7368;
+
+  --accent: #4fd1c5;
+  --accent-hover: #6fe0d6;
+  --accent-soft: #14312f;
+  --accent-contrast: #0b1a19;
+
+  --ok: #5cba7d;
+  --ok-soft: #16301f;
+  --warn: #e0a33e;
+  --warn-soft: #332614;
+  --bad: #e05a66;
+  --bad-soft: #341a1d;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+
+/* Every column of figures lines up. Non-negotiable in a console. */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+  border: 3px solid var(--ground);
+}
