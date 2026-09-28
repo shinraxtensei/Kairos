@@ -6,24 +6,31 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
+# Distribution / packaging.
+#
+# Anchored to the repository root on purpose. These are Python's distutils
+# output directories, and unanchored they match at ANY depth — `lib/` silently
+# swallowed frontend/src/lib, so `git add -A` reported success while two source
+# files were never committed and CI built a tree that could not compile.
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+backend/build/
+backend/dist/
 MANIFEST
 
 # PyInstaller
