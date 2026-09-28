@@ -22,8 +22,12 @@ jobs:
           POSTGRES_USER: kairos
           POSTGRES_PASSWORD: kairos
           POSTGRES_DB: kairos
+        # 5433 to mirror local, where the default is off 5432 so Kairos can run
+        # beside another project. CI and local agreeing on the port is the point:
+        # a divergence here is exactly what let the last port change pass review
+        # and fail in CI.
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U kairos"
           --health-interval 5s
@@ -56,9 +60,9 @@ jobs:
       # Same split as local: tests own a database, so nothing they truncate can
       # ever be something someone cared about.
       - name: Create test database
-        run: PGPASSWORD=kairos createdb -h localhost -U kairos kairos_test
+        run: PGPASSWORD=kairos createdb -h localhost -p 5433 -U kairos kairos_test
 
       - name: Tests
         env:
-          KAIROS_DATABASE_URL: postgresql+psycopg://kairos:kairos@localhost:5432/kairos_test
+          KAIROS_DATABASE_URL: postgresql+psycopg://kairos:kairos@localhost:5433/kairos_test
         run: uv run pytest
